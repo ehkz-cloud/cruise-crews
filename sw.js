@@ -2,7 +2,7 @@
    CRUISE CREWS — SERVICE WORKER v6.0.0
    Offline caching + push notification support
 ===================================================== */
-const CACHE_NAME = 'cruise-crews-v6.1.0';
+const CACHE_NAME = 'cruise-crews-v6.2.0';
 const STATIC_ASSETS = [
   './',
   './index.html',

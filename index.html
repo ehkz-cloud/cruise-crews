@@ -2338,7 +2338,7 @@ body {
             </button>
           </div>
           <!-- App Version -->
-          <div class="splash-version" id="splash-version">v6.1.0</div>
+          <div class="splash-version" id="splash-version">v6.2.0</div>
 
           <!-- PWA Install CTA on splash -->
           <div id="splash-install-cta" style="display:none; margin-top:18px; text-align:center;">
@@ -3474,7 +3474,7 @@ body {
           <div class="app-version-footer" id="app-version-footer" onclick="showVersionInfo()">
             <div class="app-version-row">
               <span class="app-version-icon"><i class="fas fa-ship"></i></span>
-              <span class="app-version-text">Cruise Crews&nbsp;<span id="app-version-label">v6.1.0</span></span>
+              <span class="app-version-text">Cruise Crews&nbsp;<span id="app-version-label">v6.2.0</span></span>
               <span class="app-version-badge" id="app-version-badge">UP TO DATE</span>
             </div>
             <div class="app-version-sub" id="app-version-sub">Tap to check for updates</div>
@@ -7823,14 +7823,8 @@ function handleSignup() {
 }
 
 function handleSocialLogin(provider) {
-  // Demo: social login just creates a guest session
-  const session = { email: 'guest@cruisecrews.app', name: 'Guest Crew Member', loggedIn: true, provider, ts: Date.now() };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  loadProfile();
-  const postLoginScreen3 = sessionStorage.getItem('cc-post-login-screen') || 'screen-home';
-  sessionStorage.removeItem('cc-post-login-screen');
-  goTo(postLoginScreen3);
-  showToast('✅ Signed in with ' + provider + '!');
+  // Social OAuth not yet connected — show informative message
+  showToast('⚠️ ' + provider + ' sign-in is coming soon! Please use your email and password to sign up or log in.');
 }
 
 function handleLogout() {
@@ -8353,7 +8347,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.1.0';
+const APP_VERSION = 'v6.2.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
