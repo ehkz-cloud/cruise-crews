@@ -3428,30 +3428,50 @@ body {
           </div>
 
           <div class="settings-section">
-            <div class="settings-title">Data & Connectivity</div>
+            <div class="settings-title">Data &amp; Connectivity</div>
+
+            <!-- Wi-Fi Only toggle (default ON) -->
             <div class="settings-item">
               <div class="settings-item-left">
                 <i class="fas fa-wifi" style="color:#00BFFF"></i>
-                <span>Use Wi-Fi Only</span>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span>Wi-Fi Only</span>
+                  <span style="font-size:11px;color:var(--text-muted);">Use app only when connected to Wi-Fi</span>
+                </div>
               </div>
               <label class="toggle">
-                <input type="checkbox" />
+                <input type="checkbox" id="toggle-wifi-only" checked onchange="onConnectivityChange('wifi', this.checked)" />
                 <span class="toggle-slider"></span>
               </label>
             </div>
+
+            <!-- Cellular Data toggle (default OFF) -->
             <div class="settings-item">
               <div class="settings-item-left">
-                <i class="fas fa-signal" style="color:#00BFFF"></i>
-                <span>Use Cellular Data</span>
+                <i class="fas fa-signal" style="color:#FF9500"></i>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span>Allow Cellular Data</span>
+                  <span style="font-size:11px;color:var(--text-muted);">May use your data plan at sea</span>
+                </div>
               </div>
               <label class="toggle">
-                <input type="checkbox" checked />
+                <input type="checkbox" id="toggle-cellular" onchange="onConnectivityChange('cellular', this.checked)" />
                 <span class="toggle-slider"></span>
               </label>
             </div>
-            <div class="data-note">
-              <i class="fas fa-info-circle"></i>
-              Cruise Crews works over your existing Wi-Fi or cellular data plan. No separate data plan required.
+
+            <!-- Cellular warning banner (hidden by default) -->
+            <div id="cellular-warning" style="display:none;margin-top:8px;padding:10px 12px;background:rgba(255,149,0,0.12);border:1px solid rgba(255,149,0,0.35);border-radius:10px;">
+              <div style="display:flex;align-items:flex-start;gap:8px;">
+                <i class="fas fa-exclamation-triangle" style="color:#FF9500;margin-top:2px;flex-shrink:0;"></i>
+                <span style="font-size:12px;color:#FF9500;line-height:1.45;"><strong>Heads up!</strong> Cruise ship cellular data rates can be very expensive. Make sure you have an international data plan or ship Wi-Fi package before enabling this.</span>
+              </div>
+            </div>
+
+            <!-- Status line -->
+            <div class="data-note" id="connectivity-status-note">
+              <i class="fas fa-wifi"></i>
+              <span id="connectivity-status-text">Wi-Fi only — app will pause when not on Wi-Fi.</span>
             </div>
           </div>
 
@@ -8401,6 +8421,9 @@ document.addEventListener('DOMContentLoaded',function(){
   /* ── Initialize version display ── */
   initVersionDisplay();
 
+  /* ── Initialize connectivity settings (Wi-Fi default ON) ── */
+  initConnectivitySettings();
+
   /* ── iOS install CTA: always show on splash for iOS Safari users ── */
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
   const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -8602,7 +8625,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.7.1';
+const APP_VERSION = 'v6.8.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -9192,6 +9215,94 @@ function showWalkingThePlank(memberName) {
   // Auto-dismiss after 2.8 seconds
   overlay.addEventListener('click', () => overlay.remove());
   setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 2800);
+}
+
+/* ── Connectivity Settings ── */
+const CONNECTIVITY_KEY = 'cc-connectivity-v1';
+
+function initConnectivitySettings() {
+  // Load saved prefs (default: wifi=true, cellular=false)
+  let prefs = { wifi: true, cellular: false };
+  try {
+    const saved = localStorage.getItem(CONNECTIVITY_KEY);
+    if (saved) prefs = { ...prefs, ...JSON.parse(saved) };
+  } catch(e) {}
+
+  const wifiToggle     = document.getElementById('toggle-wifi-only');
+  const cellToggle     = document.getElementById('toggle-cellular');
+  if (wifiToggle) wifiToggle.checked = prefs.wifi;
+  if (cellToggle) cellToggle.checked = prefs.cellular;
+
+  _applyConnectivityUI(prefs);
+}
+
+function onConnectivityChange(type, checked) {
+  let prefs = { wifi: true, cellular: false };
+  try {
+    const saved = localStorage.getItem(CONNECTIVITY_KEY);
+    if (saved) prefs = { ...prefs, ...JSON.parse(saved) };
+  } catch(e) {}
+
+  if (type === 'wifi') {
+    prefs.wifi = checked;
+    // If turning off Wi-Fi only, don't auto-enable cellular
+  }
+  if (type === 'cellular') {
+    prefs.cellular = checked;
+    // If enabling cellular, automatically turn off Wi-Fi only
+    if (checked) {
+      prefs.wifi = false;
+      const wifiToggle = document.getElementById('toggle-wifi-only');
+      if (wifiToggle) wifiToggle.checked = false;
+    }
+  }
+
+  // If both are off, default back to Wi-Fi only
+  if (!prefs.wifi && !prefs.cellular) {
+    prefs.wifi = true;
+    const wifiToggle = document.getElementById('toggle-wifi-only');
+    if (wifiToggle) wifiToggle.checked = true;
+  }
+
+  localStorage.setItem(CONNECTIVITY_KEY, JSON.stringify(prefs));
+  _applyConnectivityUI(prefs);
+
+  if (type === 'cellular' && checked) {
+    showToast('⚠️ Cellular data enabled — cruise rates may apply!');
+  } else if (type === 'wifi' && checked) {
+    showToast('📡 Wi-Fi only mode enabled');
+  } else if (type === 'cellular' && !checked) {
+    showToast('📵 Cellular data disabled');
+  }
+}
+
+function _applyConnectivityUI(prefs) {
+  const warning    = document.getElementById('cellular-warning');
+  const statusText = document.getElementById('connectivity-status-text');
+  const statusNote = document.getElementById('connectivity-status-note');
+  const noteIcon   = statusNote ? statusNote.querySelector('i') : null;
+
+  // Show/hide cellular warning
+  if (warning) warning.style.display = prefs.cellular ? 'block' : 'none';
+
+  // Update status text
+  if (statusText) {
+    if (prefs.wifi && !prefs.cellular) {
+      statusText.textContent = 'Wi-Fi only — app pauses when not on Wi-Fi.';
+      if (noteIcon) { noteIcon.className = 'fas fa-wifi'; noteIcon.style.color = '#00BFFF'; }
+    } else if (prefs.cellular && !prefs.wifi) {
+      statusText.textContent = 'Cellular data allowed — standard cruise data rates may apply.';
+      if (noteIcon) { noteIcon.className = 'fas fa-signal'; noteIcon.style.color = '#FF9500'; }
+    } else if (prefs.wifi && prefs.cellular) {
+      statusText.textContent = 'Wi-Fi preferred, cellular as fallback.';
+      if (noteIcon) { noteIcon.className = 'fas fa-wifi'; noteIcon.style.color = '#00BFFF'; }
+    }
+  }
+
+  // Update cellular toggle icon color to indicate state
+  const cellToggle = document.getElementById('toggle-cellular');
+  const cellIcon   = cellToggle ? cellToggle.closest('.settings-item')?.querySelector('.fa-signal') : null;
+  if (cellIcon) cellIcon.style.color = prefs.cellular ? '#FF3E80' : '#FF9500';
 }
 
 /* ── Install App helper ── */
