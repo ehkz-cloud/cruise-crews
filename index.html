@@ -2870,6 +2870,7 @@ body {
             <button class="icon-btn" onclick="openWalkieFromChat()" title="Walkie-Talkie"><i class="fas fa-walkie-talkie"></i></button>
             <button class="icon-btn" onclick="startVideoCall()" title="Video Call"><i class="fas fa-video"></i></button>
             <button class="icon-btn" id="header-remove-member-btn" onclick="openRemoveMemberSheet()" title="Remove Member" style="display:none;"><i class="fas fa-user-minus" style="color:#FF8080;"></i></button>
+            <button class="icon-btn" id="header-invite-member-btn" onclick="openInviteMemberSheet()" title="Invite Member"><i class="fas fa-user-plus" style="color:#00FF88;"></i></button>
             <button class="icon-btn" onclick="toggleGroupOptionsSheet()"><i class="fas fa-ellipsis-v"></i></button>
           </div>
         </div>
@@ -3924,6 +3925,47 @@ body {
       </div>
     </div>
 
+    <!-- ===================== INVITE MEMBER SHEET ===================== -->
+    <div class="bottom-sheet-overlay" id="invite-member-overlay" style="display:none" onclick="closeInviteMemberSheet(event)">
+      <div class="bottom-sheet" onclick="event.stopPropagation()" style="max-height:80vh;overflow-y:auto;">
+        <div class="bottom-sheet-handle"></div>
+        <div class="bottom-sheet-title">Invite to Crew</div>
+        <!-- Tab row: People / Link -->
+        <div style="display:flex;gap:8px;padding:0 16px 12px;">
+          <button id="invite-tab-people" onclick="switchInviteTab('people')" style="flex:1;padding:8px;border-radius:12px;border:1px solid rgba(0,255,136,0.4);background:rgba(0,255,136,0.12);color:#00FF88;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;"><i class="fas fa-users"></i> Add People</button>
+          <button id="invite-tab-link" onclick="switchInviteTab('link')" style="flex:1;padding:8px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;"><i class="fas fa-link"></i> Share Link</button>
+        </div>
+        <!-- People tab -->
+        <div id="invite-people-tab">
+          <div style="padding:0 16px 6px;font-size:11px;color:var(--text-muted);">Select people to add to this crew:</div>
+          <div id="invite-from-chat-list" style="padding:0 0 8px;">
+            <!-- populated by openInviteMemberSheet() -->
+          </div>
+          <div style="padding:8px 16px;">
+            <button id="invite-add-btn" onclick="confirmAddMembers()" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(0,255,136,0.2),rgba(0,191,255,0.2));border:1px solid rgba(0,255,136,0.4);border-radius:14px;color:#00FF88;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;"><i class="fas fa-user-plus"></i> Add Selected Members</button>
+          </div>
+        </div>
+        <!-- Link tab -->
+        <div id="invite-link-tab" style="display:none;padding:0 16px 16px;">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:12px;">
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite Link</div>
+            <div id="invite-sheet-link" style="font-size:12px;color:#00BFFF;word-break:break-all;margin-bottom:10px;">https://cruise-crews.com/join/CRUISE-XXXXX</div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="copyInviteSheetLink()" style="flex:1;padding:9px;background:rgba(0,191,255,0.12);border:1px solid rgba(0,191,255,0.3);border-radius:10px;color:#00BFFF;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;"><i class="fas fa-copy"></i> Copy</button>
+              <button onclick="shareInviteSheetLink()" style="flex:1;padding:9px;background:rgba(191,0,255,0.12);border:1px solid rgba(191,0,255,0.3);border-radius:10px;color:#BF00FF;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;"><i class="fas fa-share-alt"></i> Share</button>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">QR Code</div>
+            <div style="text-align:center;">
+              <canvas id="invite-sheet-qr" width="160" height="160" style="border-radius:10px;background:#fff;padding:6px;"></canvas>
+            </div>
+          </div>
+        </div>
+        <button class="sheet-option sheet-option-cancel" style="margin:0 16px 8px;" onclick="closeInviteMemberSheet()">Cancel</button>
+        <div style="height:max(env(safe-area-inset-bottom),12px);"></div>
+      </div>
+    </div>
     <!-- ===================== DELETE GROUP MODAL ===================== -->
     <div class="modal-overlay" id="delete-group-modal" style="display:none" onclick="closeDeleteGroupModal(event)">
       <div class="modal-box" onclick="event.stopPropagation()">
@@ -4989,16 +5031,17 @@ function openChat(chatItemEl) {
   // 8. Navigate to the chat screen (goTo handles scrollToBottom at 400ms)
   goTo('screen-groupchat');
 
-  // 9. Show/hide the header remove-member button based on creator status
+  // 9. Show/hide the header remove-member & invite-member buttons
   const headerRemoveBtn = document.getElementById('header-remove-member-btn');
-  if (headerRemoveBtn) {
-    if (!isDM) {
-      const chatMeta = _resolveCrewMeta(chatKey);
-      const canRemove = chatMeta && chatMeta.createdBy === 'You' && chatMeta.members && chatMeta.members.length > 0;
-      headerRemoveBtn.style.display = canRemove ? '' : 'none';
-    } else {
-      headerRemoveBtn.style.display = 'none';
-    }
+  const headerInviteBtn = document.getElementById('header-invite-member-btn');
+  if (isDM) {
+    if (headerRemoveBtn) headerRemoveBtn.style.display = 'none';
+    if (headerInviteBtn) headerInviteBtn.style.display = 'none';
+  } else {
+    const chatMeta = _resolveCrewMeta(chatKey);
+    const canRemove = chatMeta && chatMeta.createdBy === 'You' && chatMeta.members && chatMeta.members.length > 0;
+    if (headerRemoveBtn) headerRemoveBtn.style.display = canRemove ? '' : 'none';
+    if (headerInviteBtn) headerInviteBtn.style.display = ''; // always show for group chats
   }
 }
 
@@ -7160,6 +7203,155 @@ function confirmRemoveMember(memberName) {
   }, 2900);
 }
 
+/* =====================================================
+   INVITE MEMBER SHEET (from chat header)
+===================================================== */
+let _inviteSheetCode = '';
+
+function openInviteMemberSheet() {
+  const overlay = document.getElementById('invite-member-overlay');
+  const list    = document.getElementById('invite-from-chat-list');
+  if (!overlay || !list) return;
+
+  // Generate a fresh invite code for this session
+  _inviteSheetCode = _generateInviteCode();
+
+  // Update the link display
+  const linkEl = document.getElementById('invite-sheet-link');
+  if (linkEl) linkEl.textContent = 'https://cruise-crews.com/join/' + _inviteSheetCode;
+
+  // Draw QR code
+  const qrCanvas = document.getElementById('invite-sheet-qr');
+  if (qrCanvas) _drawQR(qrCanvas, 'https://cruise-crews.com/join/' + _inviteSheetCode);
+
+  // Build the people list — show members NOT already in the crew
+  const meta = _resolveCrewMeta(_activeChatKey);
+  const existingNames = (meta && meta.members) ? meta.members.map(m => m.name) : [];
+  const available = _ALL_MEMBERS.filter(m => !existingNames.includes(m.name));
+
+  if (available.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">All known members are already in this crew!<br><br><span style="font-size:11px;">Use the Share Link tab to invite others.</span></div>`;
+  } else {
+    list.innerHTML = available.map(m => `
+      <div class="wm-panel-row" style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="wm-panel-avatar" style="width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+          <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=${m.seed}&backgroundColor=${m.bg}" alt="${m.name}" style="width:100%;height:100%;" />
+        </div>
+        <div class="wm-panel-info" style="flex:1;margin-left:12px;">
+          <div style="font-size:13px;font-weight:600;">${m.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);">On your cruise</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" class="invite-from-chat-check" value="${m.name}" data-seed="${m.seed}" data-bg="${m.bg}" style="width:18px;height:18px;accent-color:#00FF88;cursor:pointer;" />
+        </label>
+      </div>`).join('');
+  }
+
+  // Reset to People tab
+  switchInviteTab('people');
+  overlay.style.display = 'flex';
+}
+
+function closeInviteMemberSheet(e) {
+  const overlay = document.getElementById('invite-member-overlay');
+  if (overlay && (!e || e.target === overlay)) overlay.style.display = 'none';
+}
+
+function switchInviteTab(tab) {
+  const peopleTab  = document.getElementById('invite-people-tab');
+  const linkTab    = document.getElementById('invite-link-tab');
+  const peopleBtn  = document.getElementById('invite-tab-people');
+  const linkBtn    = document.getElementById('invite-tab-link');
+  const isLink = tab === 'link';
+
+  if (peopleTab) peopleTab.style.display = isLink ? 'none' : 'block';
+  if (linkTab)   linkTab.style.display   = isLink ? 'block' : 'none';
+
+  const activeStyle   = 'border:1px solid rgba(0,255,136,0.4);background:rgba(0,255,136,0.12);color:#00FF88;';
+  const inactiveStyle = 'border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);';
+  if (peopleBtn) peopleBtn.style.cssText += isLink ? inactiveStyle : activeStyle;
+  if (linkBtn)   linkBtn.style.cssText   += isLink ? activeStyle   : inactiveStyle;
+}
+
+function confirmAddMembers() {
+  const checks = document.querySelectorAll('.invite-from-chat-check:checked');
+  if (checks.length === 0) {
+    showToast('Select at least one person to add.');
+    return;
+  }
+
+  const meta = _resolveCrewMeta(_activeChatKey);
+  if (!meta) return;
+
+  const newNames = [];
+  checks.forEach(cb => {
+    const name = cb.value;
+    const seed = cb.dataset.seed;
+    const bg   = cb.dataset.bg;
+    // Only add if not already a member
+    if (!meta.members.find(m => m.name === name)) {
+      meta.members.push({ name, seed, bg });
+      newNames.push(name);
+    }
+  });
+
+  if (newNames.length === 0) {
+    showToast('Those members are already in the crew.');
+    closeInviteMemberSheet();
+    return;
+  }
+
+  _crewMetaMap.set(_activeChatKey, meta);
+
+  // Update the chat header subtitle
+  const headerSub = document.querySelector('#screen-groupchat .chat-header-sub');
+  if (headerSub) {
+    const c = meta.members.length;
+    headerSub.innerHTML = `<span class="online-dot-sm"></span> ${c} member${c !== 1 ? 's' : ''}`;
+  }
+
+  // Update the remove-member button visibility
+  const hrmBtn = document.getElementById('header-remove-member-btn');
+  if (hrmBtn && meta.createdBy === 'You') hrmBtn.style.display = '';
+
+  closeInviteMemberSheet();
+
+  // Inject system messages for each added member
+  const msgArea   = document.getElementById('messages-area');
+  const typingRow = document.getElementById('typing-row');
+  if (msgArea && typingRow) {
+    newNames.forEach(name => {
+      const sys = document.createElement('div');
+      sys.className = 'msg-row';
+      sys.style.cssText = 'justify-content:center;margin:6px 0;';
+      sys.innerHTML = `<div style="font-size:11px;color:var(--text-muted);background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);border-radius:12px;padding:5px 14px;text-align:center;">👋 ${name} joined the crew</div>`;
+      msgArea.insertBefore(sys, typingRow);
+    });
+    scrollToBottom();
+  }
+
+  const plural = newNames.length > 1 ? newNames.length + ' members' : newNames[0];
+  showToast('\u2705 ' + plural + ' added to the crew!');
+}
+
+function copyInviteSheetLink() {
+  const link = 'https://cruise-crews.com/join/' + _inviteSheetCode;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(() => showToast('\uD83D\uDD17 Invite link copied!')).catch(() => showToast(link));
+  } else {
+    showToast('Link: ' + link);
+  }
+}
+
+function shareInviteSheetLink() {
+  const link = 'https://cruise-crews.com/join/' + _inviteSheetCode;
+  if (navigator.share) {
+    navigator.share({ title: 'Join my Cruise Crew!', text: 'Join me on Cruise Crews — stay connected at sea!', url: link });
+  } else {
+    copyInviteSheetLink();
+  }
+}
+
 // Colour gradients cycling for new groups
 const _crewGradients = [
   'linear-gradient(135deg,#BF00FF,#7B00D4)',
@@ -8408,7 +8600,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.5.0';
+const APP_VERSION = 'v6.6.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
