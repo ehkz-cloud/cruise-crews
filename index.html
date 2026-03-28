@@ -2491,10 +2491,43 @@ body {
             <div class="home-title"><i class="fas fa-ship"></i> Cruise Crews</div>
             <div class="home-greeting" id="home-greeting">Hey, Jamie 👋</div>
           </div>
-          <div class="home-header-right" style="display:flex;gap:6px;align-items:center;">
-            <button class="icon-btn" onclick="goTo('screen-cruise-info')" title="My Cruise" style="position:relative;">
+          <div class="home-header-right" style="display:flex;gap:6px;align-items:center;position:relative;">
+            <button class="icon-btn" onclick="toggleCruiseInfoPopup()" title="My Cruise" style="position:relative;">
               <i class="fas fa-ship"></i>
             </button>
+            <!-- Cruise Info Popup -->
+            <div id="cruise-info-popup" style="display:none;position:absolute;top:56px;right:0;width:220px;background:rgba(15,10,40,0.97);border:1px solid rgba(191,0,255,0.35);border-radius:16px;padding:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.6);backdrop-filter:blur(12px);">
+              <div style="font-size:10px;color:#A0A0C0;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">My Cruise</div>
+              <div id="popup-no-info" style="font-size:12px;color:#606080;text-align:center;padding:8px 0;">No cruise info saved yet.<br><span style="color:#BF00FF;cursor:pointer;" onclick="closeCruiseInfoPopup();goTo('screen-cruise-info')">Tap to add details →</span></div>
+              <div id="popup-cruise-details" style="display:none;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                  <span style="font-size:20px;">🚢</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:#F0F0FF;" id="popup-ship"></div>
+                    <div style="font-size:11px;color:#A0A0C0;" id="popup-line"></div>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+                  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px;">
+                    <div style="font-size:9px;color:#606080;text-transform:uppercase;letter-spacing:0.5px;">Departs</div>
+                    <div style="font-size:11px;font-weight:600;color:#F0F0FF;" id="popup-depart"></div>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px;">
+                    <div style="font-size:9px;color:#606080;text-transform:uppercase;letter-spacing:0.5px;">Returns</div>
+                    <div style="font-size:11px;font-weight:600;color:#F0F0FF;" id="popup-return"></div>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px;">
+                    <div style="font-size:9px;color:#606080;text-transform:uppercase;letter-spacing:0.5px;">Destination</div>
+                    <div style="font-size:11px;font-weight:600;color:#F0F0FF;" id="popup-dest"></div>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px;">
+                    <div style="font-size:9px;color:#606080;text-transform:uppercase;letter-spacing:0.5px;">Cabin</div>
+                    <div style="font-size:11px;font-weight:600;color:#F0F0FF;" id="popup-cabin"></div>
+                  </div>
+                </div>
+                <button onclick="closeCruiseInfoPopup();goTo('screen-cruise-info')" style="width:100%;padding:7px;background:rgba(191,0,255,0.15);border:1px solid rgba(191,0,255,0.3);border-radius:10px;color:#BF00FF;font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;"><i class="fas fa-edit"></i> Edit Cruise Info</button>
+              </div>
+            </div>
             <button class="icon-btn" id="home-install-btn" onclick="showInstallScreen()" title="Install App" style="display:none;">
               <i class="fas fa-download"></i>
             </button>
@@ -2836,6 +2869,7 @@ body {
           <div class="chat-header-actions">
             <button class="icon-btn" onclick="openWalkieFromChat()" title="Walkie-Talkie"><i class="fas fa-walkie-talkie"></i></button>
             <button class="icon-btn" onclick="startVideoCall()" title="Video Call"><i class="fas fa-video"></i></button>
+            <button class="icon-btn" id="header-remove-member-btn" onclick="openRemoveMemberSheet()" title="Remove Member" style="display:none;"><i class="fas fa-user-minus" style="color:#FF8080;"></i></button>
             <button class="icon-btn" onclick="toggleGroupOptionsSheet()"><i class="fas fa-ellipsis-v"></i></button>
           </div>
         </div>
@@ -3585,22 +3619,22 @@ body {
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
               <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#BF00FF,#0080FF);display:flex;align-items:center;justify-content:center;font-size:22px;">🚢</div>
               <div>
-                <div style="font-size:16px;font-weight:700;color:#F0F0FF;" id="ci-ship-display">Wonder of the Seas</div>
-                <div style="font-size:12px;color:#A0A0C0;" id="ci-line-display">Royal Caribbean</div>
+                <div style="font-size:16px;font-weight:700;color:#F0F0FF;" id="ci-ship-display">—</div>
+                <div style="font-size:12px;color:#A0A0C0;" id="ci-line-display">—</div>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px;">
                 <div style="font-size:10px;color:#606080;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Departure</div>
-                <div style="font-size:13px;font-weight:600;color:#F0F0FF;" id="ci-depart-display">Jun 14, 2025</div>
+                <div style="font-size:13px;font-weight:600;color:#F0F0FF;" id="ci-depart-display">—</div>
               </div>
               <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px;">
                 <div style="font-size:10px;color:#606080;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Return</div>
-                <div style="font-size:13px;font-weight:600;color:#F0F0FF;" id="ci-return-display">Jun 21, 2025</div>
+                <div style="font-size:13px;font-weight:600;color:#F0F0FF;" id="ci-return-display">—</div>
               </div>
               <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px;">
                 <div style="font-size:10px;color:#606080;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Destination</div>
-                <div style="font-size:13px;font-weight:600;color:#F0F0FF;" id="ci-dest-display">Caribbean</div>
+                <div style="font-size:13px;font-weight:600;color:#F0F0FF;" id="ci-dest-display">—</div>
               </div>
               <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px;">
                 <div style="font-size:10px;color:#606080;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Cabin</div>
@@ -3613,15 +3647,15 @@ body {
             <div style="font-size:12px;font-weight:600;color:#A0A0C0;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Edit Details</div>
             <div class="form-group" style="margin-bottom:12px;">
               <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Cruise Line</label>
-              <div class="input-wrap"><i class="fas fa-ship input-icon"></i><input type="text" id="ci-line-input" class="glass-input" placeholder="e.g., Royal Caribbean" value="Royal Caribbean" /></div>
+              <div class="input-wrap"><i class="fas fa-ship input-icon"></i><input type="text" id="ci-line-input" class="glass-input" placeholder="e.g., Royal Caribbean" /></div>
             </div>
             <div class="form-group" style="margin-bottom:12px;">
               <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Ship Name</label>
-              <div class="input-wrap"><i class="fas fa-anchor input-icon"></i><input type="text" id="ci-ship-input" class="glass-input" placeholder="e.g., Wonder of the Seas" value="Wonder of the Seas" /></div>
+              <div class="input-wrap"><i class="fas fa-anchor input-icon"></i><input type="text" id="ci-ship-input" class="glass-input" placeholder="e.g., Wonder of the Seas" /></div>
             </div>
             <div class="form-group" style="margin-bottom:12px;">
               <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Destination</label>
-              <div class="input-wrap"><i class="fas fa-map-marker-alt input-icon"></i><input type="text" id="ci-dest-input" class="glass-input" placeholder="e.g., Caribbean" value="Caribbean" /></div>
+              <div class="input-wrap"><i class="fas fa-map-marker-alt input-icon"></i><input type="text" id="ci-dest-input" class="glass-input" placeholder="e.g., Caribbean" /></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
               <div class="form-group">
@@ -4954,6 +4988,18 @@ function openChat(chatItemEl) {
 
   // 8. Navigate to the chat screen (goTo handles scrollToBottom at 400ms)
   goTo('screen-groupchat');
+
+  // 9. Show/hide the header remove-member button based on creator status
+  const headerRemoveBtn = document.getElementById('header-remove-member-btn');
+  if (headerRemoveBtn) {
+    if (!isDM) {
+      const chatMeta = _resolveCrewMeta(chatKey);
+      const canRemove = chatMeta && chatMeta.createdBy === 'You' && chatMeta.members && chatMeta.members.length > 0;
+      headerRemoveBtn.style.display = canRemove ? '' : 'none';
+    } else {
+      headerRemoveBtn.style.display = 'none';
+    }
+  }
 }
 
 function handleSend(e) { if (e.key==='Enter') sendMessage(); }
@@ -7090,20 +7136,28 @@ function confirmRemoveMember(memberName) {
     headerSub.innerHTML = `<span class="online-dot-sm"></span> ${c} member${c !== 1 ? 's' : ''}`;
   }
 
-  closeRemoveMemberSheet();
-  showToast('🚫 ' + memberName + ' removed from crew.');
-
-  // Inject a system message into the chat
-  const msgArea   = document.getElementById('messages-area');
-  const typingRow = document.getElementById('typing-row');
-  if (msgArea && typingRow) {
-    const sys = document.createElement('div');
-    sys.className = 'msg-row';
-    sys.style.cssText = 'justify-content:center;margin:6px 0;';
-    sys.innerHTML = `<div style="font-size:11px;color:var(--text-muted);background:rgba(255,64,64,0.06);border:1px solid rgba(255,64,64,0.15);border-radius:12px;padding:5px 14px;text-align:center;">🚫 ${memberName} was removed from the crew</div>`;
-    msgArea.insertBefore(sys, typingRow);
-    scrollToBottom();
+  // Update the header remove-member button visibility
+  const hrmBtn = document.getElementById('header-remove-member-btn');
+  if (hrmBtn) {
+    hrmBtn.style.display = (meta.members.length > 0) ? '' : 'none';
   }
+
+  closeRemoveMemberSheet();
+  // Show the walking the plank animation
+  showWalkingThePlank(memberName);
+  // Inject a system message into the chat after animation
+  setTimeout(() => {
+    const msgArea   = document.getElementById('messages-area');
+    const typingRow = document.getElementById('typing-row');
+    if (msgArea && typingRow) {
+      const sys = document.createElement('div');
+      sys.className = 'msg-row';
+      sys.style.cssText = 'justify-content:center;margin:6px 0;';
+      sys.innerHTML = `<div style="font-size:11px;color:var(--text-muted);background:rgba(255,64,64,0.06);border:1px solid rgba(255,64,64,0.15);border-radius:12px;padding:5px 14px;text-align:center;">🏴\u200d☠️ ${memberName} walked the plank</div>`;
+      msgArea.insertBefore(sys, typingRow);
+      scrollToBottom();
+    }
+  }, 2900);
 }
 
 // Colour gradients cycling for new groups
@@ -7305,6 +7359,9 @@ function launchCrew() {
   if (chatItem) {
     setTimeout(() => {
       openChat(chatItem);
+      // Show the header remove-member button since user is the creator
+      const hrmBtn = document.getElementById('header-remove-member-btn');
+      if (hrmBtn && memberObjs.length > 0) hrmBtn.style.display = '';
       // After opening, inject an info system message about access settings
       setTimeout(() => {
         const msgArea  = document.getElementById('messages-area');
@@ -8351,7 +8408,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.4.0';
+const APP_VERSION = 'v6.5.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -8821,6 +8878,98 @@ function prefillCreateCrewFromProfile() {
       showToast('✨ Cruise details filled from your profile');
     }
   } catch(e) {}
+}
+
+/* ── Cruise Info Popup (ship icon in home header) ── */
+function toggleCruiseInfoPopup() {
+  const popup = document.getElementById('cruise-info-popup');
+  if (!popup) return;
+  if (popup.style.display !== 'none') {
+    closeCruiseInfoPopup();
+    return;
+  }
+  // Populate popup with saved cruise info
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem('cruiseInfo') || 'null'); } catch(e) {}
+  const noInfo = document.getElementById('popup-no-info');
+  const details = document.getElementById('popup-cruise-details');
+  if (data && (data.ship || data.line || data.dest || data.depart)) {
+    if (noInfo) noInfo.style.display = 'none';
+    if (details) details.style.display = 'block';
+    const shipEl   = document.getElementById('popup-ship');
+    const lineEl   = document.getElementById('popup-line');
+    const departEl = document.getElementById('popup-depart');
+    const retEl    = document.getElementById('popup-return');
+    const destEl   = document.getElementById('popup-dest');
+    const cabinEl  = document.getElementById('popup-cabin');
+    if (shipEl)   shipEl.textContent   = data.ship   || '—';
+    if (lineEl)   lineEl.textContent   = data.line   || '—';
+    if (departEl) departEl.textContent = data.depart || '—';
+    if (retEl)    retEl.textContent    = data.ret    || '—';
+    if (destEl)   destEl.textContent   = data.dest   || '—';
+    if (cabinEl)  cabinEl.textContent  = data.cabin  || '—';
+  } else {
+    if (noInfo) noInfo.style.display = 'block';
+    if (details) details.style.display = 'none';
+  }
+  popup.style.display = 'block';
+  // Close popup when clicking outside
+  setTimeout(() => {
+    document.addEventListener('click', _closeCruisePopupOutside, { once: true, capture: true });
+  }, 50);
+}
+function _closeCruisePopupOutside(e) {
+  const popup = document.getElementById('cruise-info-popup');
+  if (popup && !popup.contains(e.target)) {
+    closeCruiseInfoPopup();
+  } else if (popup && popup.contains(e.target)) {
+    // Re-attach listener if click was inside popup
+    setTimeout(() => {
+      document.addEventListener('click', _closeCruisePopupOutside, { once: true, capture: true });
+    }, 50);
+  }
+}
+function closeCruiseInfoPopup() {
+  const popup = document.getElementById('cruise-info-popup');
+  if (popup) popup.style.display = 'none';
+  document.removeEventListener('click', _closeCruisePopupOutside, true);
+}
+
+/* ── Walking the Plank Animation ── */
+function showWalkingThePlank(memberName) {
+  // Remove any existing overlay
+  const existing = document.getElementById('plank-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'plank-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);';
+  overlay.innerHTML = `
+    <div style="text-align:center;padding:24px;">
+      <div style="font-size:48px;margin-bottom:8px;animation:plankBounce 0.6s ease infinite alternate;">🏴‍☠️</div>
+      <div style="font-size:28px;font-weight:800;color:#FF6B35;margin-bottom:4px;text-shadow:0 0 20px rgba(255,107,53,0.5);">WALK THE PLANK!</div>
+      <div style="font-size:14px;color:#A0A0C0;margin-bottom:20px;">${memberName} has been removed from the crew</div>
+      <div style="font-size:56px;animation:plankWalk 1.2s steps(4) infinite;display:inline-block;">🚶</div>
+      <div style="font-size:32px;margin-top:-8px;">🌊🌊🌊🌊🌊</div>
+      <div style="margin-top:20px;font-size:13px;color:#606080;">Arrr! They be swimmin' with the fishes now!</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Inject animation keyframes if not already present
+  if (!document.getElementById('plank-anim-style')) {
+    const style = document.createElement('style');
+    style.id = 'plank-anim-style';
+    style.textContent = `
+      @keyframes plankBounce { from { transform: rotate(-10deg) scale(1); } to { transform: rotate(10deg) scale(1.15); } }
+      @keyframes plankWalk { 0% { transform: translateX(-60px); opacity:1; } 75% { transform: translateX(60px); opacity:1; } 100% { transform: translateX(80px); opacity:0; } }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Auto-dismiss after 2.8 seconds
+  overlay.addEventListener('click', () => overlay.remove());
+  setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 2800);
 }
 
 /* ── Install App helper ── */
