@@ -3570,10 +3570,14 @@ body {
           </div>
         </div>
         <!-- Controls -->
-        <div id="vc-controls" style="background:rgba(0,0,0,0.85);padding:20px 24px 28px;display:flex;align-items:center;justify-content:space-around;gap:12px;">
+        <div id="vc-controls" style="background:rgba(0,0,0,0.85);padding:16px 12px 28px;display:flex;align-items:center;justify-content:space-around;gap:8px;">
           <button id="vc-mute-btn" class="vc-ctrl-btn" onclick="toggleVCMute()" title="Mute">
             <i class="fas fa-microphone" id="vc-mute-icon"></i>
             <span>Mute</span>
+          </button>
+          <button id="vc-flip-ctrl-btn" class="vc-ctrl-btn" onclick="flipCamera()" title="Flip Camera">
+            <i class="fas fa-camera-rotate" id="vc-flip-icon"></i>
+            <span>Flip</span>
           </button>
           <button id="vc-end-btn" class="vc-ctrl-btn vc-end" onclick="endVideoCall()" title="End call">
             <i class="fas fa-phone-slash"></i>
@@ -3590,7 +3594,7 @@ body {
         </div>
         <style>
           @keyframes vcDot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1.2)} }
-          .vc-ctrl-btn { display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:12px 16px;color:#F0F0FF;font-size:11px;font-weight:500;cursor:pointer;min-width:60px;transition:all 0.2s; }
+          .vc-ctrl-btn { display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:10px 10px;color:#F0F0FF;font-size:10px;font-weight:500;cursor:pointer;min-width:52px;flex:1;transition:all 0.2s; }
           .vc-ctrl-btn i { font-size:20px; }
           .vc-ctrl-btn:active { transform:scale(0.93); }
           .vc-ctrl-btn.active { background:rgba(191,0,255,0.2);border-color:rgba(191,0,255,0.5);color:#BF00FF; }
@@ -5039,8 +5043,9 @@ function openChat(chatItemEl) {
     if (headerInviteBtn) headerInviteBtn.style.display = 'none';
   } else {
     const chatMeta = _resolveCrewMeta(chatKey);
-    const canRemove = chatMeta && chatMeta.createdBy === 'You' && chatMeta.members && chatMeta.members.length > 0;
-    if (headerRemoveBtn) headerRemoveBtn.style.display = canRemove ? '' : 'none';
+    // Show remove button for any group chat that has members (not just ones created by 'You')
+    const hasMembers = chatMeta && chatMeta.members && chatMeta.members.length > 0;
+    if (headerRemoveBtn) headerRemoveBtn.style.display = hasMembers ? '' : 'none';
     if (headerInviteBtn) headerInviteBtn.style.display = ''; // always show for group chats
   }
 }
@@ -7137,24 +7142,27 @@ function openRemoveMemberSheet() {
     return;
   }
 
-  let html = '';
+  list.innerHTML = '';
   meta.members.forEach(m => {
-    html += `
-      <div class="wm-panel-row" style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <div class="wm-panel-avatar" style="width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;">
-          <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=${m.seed}&backgroundColor=${m.bg}" alt="${m.name}" style="width:100%;height:100%;" />
-        </div>
-        <div class="wm-panel-info" style="flex:1;margin-left:12px;">
-          <div style="font-size:13px;font-weight:600;">${m.name}</div>
-          <div style="font-size:11px;color:var(--text-muted);">Member</div>
-        </div>
-        <button onclick="confirmRemoveMember(${JSON.stringify(m.name)})" style="padding:6px 14px;background:rgba(255,64,64,0.15);border:1px solid rgba(255,64,64,0.3);border-radius:10px;color:#FF8080;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;">
-          Remove
-        </button>
+    const row = document.createElement('div');
+    row.className = 'wm-panel-row';
+    row.style.cssText = 'padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);';
+    row.innerHTML = `
+      <div class="wm-panel-avatar" style="width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=${m.seed}&backgroundColor=${m.bg}" alt="${m.name}" style="width:100%;height:100%;" />
+      </div>
+      <div class="wm-panel-info" style="flex:1;margin-left:12px;">
+        <div style="font-size:13px;font-weight:600;">${m.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Member</div>
       </div>`;
+    const btn = document.createElement('button');
+    btn.textContent = 'Remove';
+    btn.style.cssText = 'padding:6px 14px;background:rgba(255,64,64,0.15);border:1px solid rgba(255,64,64,0.3);border-radius:10px;color:#FF8080;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;';
+    btn.addEventListener('click', () => confirmRemoveMember(m.name));
+    row.appendChild(btn);
+    list.appendChild(row);
   });
 
-  list.innerHTML = html;
   overlay.style.display = 'flex';
 }
 
@@ -7312,7 +7320,7 @@ function confirmAddMembers() {
 
   // Update the remove-member button visibility
   const hrmBtn = document.getElementById('header-remove-member-btn');
-  if (hrmBtn && meta.createdBy === 'You') hrmBtn.style.display = '';
+  if (hrmBtn) hrmBtn.style.display = '';
 
   closeInviteMemberSheet();
 
@@ -8191,8 +8199,8 @@ function toggleGroupOptionsSheet() {
   const removBtn = document.getElementById('remove-member-btn');
   if (removBtn) {
     const meta = _resolveCrewMeta(_activeChatKey);
-    const isCreator = meta && meta.createdBy === 'You' && meta.members && meta.members.length > 0;
-    removBtn.style.display = isCreator ? '' : 'none';
+    const hasMembers = meta && meta.members && meta.members.length > 0;
+    removBtn.style.display = hasMembers ? '' : 'none';
   }
 
   // Update delete modal description
@@ -8600,7 +8608,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.6.0';
+const APP_VERSION = 'v6.7.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -8861,6 +8869,20 @@ function toggleVCSpeaker() {
 
 function flipCamera() {
   _vcFacingMode = _vcFacingMode === 'user' ? 'environment' : 'user';
+  const flipIcon = document.getElementById('vc-flip-icon');
+  const flipBtn  = document.getElementById('vc-flip-ctrl-btn');
+  // Spin animation feedback
+  if (flipIcon) {
+    flipIcon.style.transition = 'transform 0.35s ease';
+    flipIcon.style.transform = 'rotate(180deg)';
+    setTimeout(() => { flipIcon.style.transform = 'rotate(0deg)'; }, 350);
+  }
+  if (flipBtn) {
+    flipBtn.classList.add('active');
+    setTimeout(() => flipBtn.classList.remove('active'), 400);
+  }
+  const label = _vcFacingMode === 'user' ? 'Front camera' : 'Rear camera';
+  showToast('\uD83D\uDCF7 ' + label);
   if (_vcStream) {
     _vcStream.getVideoTracks().forEach(t => t.stop());
     navigator.mediaDevices.getUserMedia({ video: { facingMode: _vcFacingMode }, audio: !_vcMuted })
@@ -8868,7 +8890,7 @@ function flipCamera() {
         _vcStream = stream;
         const localVid = document.getElementById('vc-local-video');
         if (localVid) localVid.srcObject = stream;
-      }).catch(() => {});
+      }).catch(() => { showToast('Camera switch not available'); });
   }
 }
 
