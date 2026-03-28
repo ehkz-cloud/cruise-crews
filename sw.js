@@ -1,8 +1,9 @@
 /* =====================================================
-   CRUISE CREWS — SERVICE WORKER v6.0.0
+   CRUISE CREWS — SERVICE WORKER v6.7.1
    Offline caching + push notification support
 ===================================================== */
-const CACHE_NAME = 'cruise-crews-v6.2.0';
+const SW_VERSION  = 'v6.7.1';
+const CACHE_NAME  = 'cruise-crews-v6.7.1';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -18,7 +19,7 @@ self.addEventListener('install', event => {
       return cache.addAll(STATIC_ASSETS).catch(err => {
         console.warn('[SW] Some assets failed to cache:', err);
       });
-    }).then(() => self.skipWaiting())
+    }).then(() => self.skipWaiting())   // activate immediately on install
   );
 });
 
@@ -29,8 +30,9 @@ self.addEventListener('activate', event => {
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     ).then(() => {
       self.clients.claim();
+      // Notify all open tabs that a new SW version is active
       self.clients.matchAll({ type: 'window' }).then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: 'v6.1.0' }));
+        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
       });
     })
   );
@@ -42,6 +44,7 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (url.pathname.startsWith('/api/')) return;
 
+  // Always go network-first for HTML so updates are picked up immediately
   if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
     event.respondWith(
       fetch(event.request)
@@ -55,6 +58,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Cache-first for everything else (icons, fonts, etc.)
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
@@ -109,14 +113,19 @@ self.addEventListener('notificationclick', event => {
   );
 });
 
-// ── Message from client ───────────────────────────────
+// ── Messages from client ──────────────────────────────
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  const type = (event.data && typeof event.data === 'object')
+    ? event.data.type
+    : event.data;   // handle both string 'SKIP_WAITING' and object { type: 'SKIP_WAITING' }
+
+  if (type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  if (event.data && event.data.type === 'GET_VERSION') {
+
+  if (type === 'GET_VERSION') {
     if (event.ports && event.ports[0]) {
-      event.ports[0].postMessage({ version: 'v6.1.0' });
+      event.ports[0].postMessage({ version: SW_VERSION });
     }
   }
 });

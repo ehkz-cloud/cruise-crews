@@ -8485,15 +8485,16 @@ function initPWA() {
 
         /* Check for waiting SW (already downloaded new version) */
         if (reg.waiting) {
-          reg.waiting.postMessage('SKIP_WAITING');
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
 
         reg.addEventListener('updatefound', () => {
           const newSW = reg.installing;
           if (!newSW) return;
           newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'installed') {
-              newSW.postMessage('SKIP_WAITING');
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              // New SW installed and waiting — show update banner instead of auto-skipping
+              setVersionBadge('outdated', APP_VERSION);
             }
           });
         });
@@ -8508,15 +8509,8 @@ function initPWA() {
       }
     });
 
-    /* When controller changes, hard-reload ONCE */
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
-        refreshing = true;
-        console.log('[PWA] New version active — reloading once…');
-        window.location.reload(true);
-      }
-    });
+    /* controllerchange reload is handled in showVersionInfo with { once: true }
+       to avoid double-reloads on first install */
   }
 
   /* ── Detect environment ── */
@@ -8608,7 +8602,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.7.0';
+const APP_VERSION = 'v6.7.1';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -8634,12 +8628,20 @@ function initVersionDisplay() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(reg => {
       if (reg.waiting) {
-        setVersionBadge('updating', 'Updating…');
+        // There's a new SW waiting — show update ready
+        setVersionBadge('outdated', APP_VERSION);
+      } else if (!navigator.serviceWorker.controller) {
+        // First install — SW just took control, show up to date
+        setVersionBadge('ok', APP_VERSION);
       }
       reg.addEventListener('updatefound', () => {
-        setVersionBadge('updating', 'Updating…');
-        const sub = document.getElementById('app-version-sub');
-        if (sub) sub.textContent = 'New version downloading…';
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            setVersionBadge('outdated', APP_VERSION);
+          }
+        });
       });
     });
   }
@@ -8652,9 +8654,10 @@ function setVersionBadge(state, swVersion) {
   if (!badge) return;
 
   badge.className = 'app-version-badge'; // reset
+  // Always show the JS APP_VERSION as the main version label
+  if (label) label.textContent = APP_VERSION;
   if (state === 'ok') {
     badge.textContent = 'UP TO DATE';
-    // green is the default — no extra class needed
     if (sub) sub.textContent = 'Tap to check for updates';
   } else if (state === 'updating') {
     badge.textContent = 'UPDATING…';
@@ -8663,8 +8666,7 @@ function setVersionBadge(state, swVersion) {
   } else if (state === 'outdated') {
     badge.textContent = 'UPDATE READY';
     badge.classList.add('outdated');    // red
-    if (sub) sub.textContent = 'Tap to apply update → ' + (swVersion || '');
-    if (label && swVersion) label.textContent = swVersion;
+    if (sub) sub.textContent = 'Tap to apply update → tap here';
   }
 }
 
@@ -8678,10 +8680,16 @@ function showVersionInfo() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(reg => {
         if (reg.waiting) {
-          reg.waiting.postMessage('SKIP_WAITING');
-          showToast('🔄 Applying update…');
+          showToast('\uD83D\uDD04 Applying update\u2026 reloading');
+          // Listen for controller change then reload
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload(true);
+          }, { once: true });
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         } else {
-          showToast('⏳ Update installing, please wait…');
+          // No waiting SW — force a network fetch and reload
+          showToast('\uD83D\uDD04 Refreshing to latest version\u2026');
+          setTimeout(() => window.location.reload(true), 800);
         }
       });
     }
