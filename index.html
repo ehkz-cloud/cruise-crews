@@ -5,7 +5,7 @@
   <!-- ===== NUCLEAR SW CACHE BUSTER — runs before anything else ===== -->
   <script>
   (function(){
-    var REQUIRED_CACHE = 'cruise-crews-v6.9.0';
+    var REQUIRED_CACHE = 'cruise-crews-v6.9.1';
     if (!('serviceWorker' in navigator) || !('caches' in window)) return;
     // Unregister any SW whose active cache is not the required version
     navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -18,7 +18,7 @@
           var mc = new MessageChannel();
           mc.port1.onmessage = function(e){
             var ver = e.data && e.data.version;
-            if (ver && ver !== 'v6.9.0') {
+            if (ver && ver !== 'v6.9.1') {
               // Wrong version — unregister and reload
               reg.unregister().then(function(){ window.location.reload(true); });
             }
@@ -3086,6 +3086,18 @@ body {
         <input type="file" id="chat-video-input" accept="video/*" style="display:none" onchange="handleChatVideoSelect(this)" />
 
         <!-- ── Video fullscreen player ── -->
+        <!-- Photo Lightbox -->
+        <div id="photo-lightbox" style="display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,0.95);flex-direction:column;align-items:center;justify-content:center;">
+          <div style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(to bottom,rgba(0,0,0,0.7),transparent);z-index:2;">
+            <span id="photo-lb-title" style="color:#fff;font-size:13px;font-weight:600;">Photo</span>
+            <div style="display:flex;gap:10px;">
+              <button onclick="saveMediaToDevice('photo')" style="background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:38px;height:38px;color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Save to device"><i class="fas fa-download"></i></button>
+              <button onclick="closePhotoLightbox()" style="background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:38px;height:38px;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fas fa-times"></i></button>
+            </div>
+          </div>
+          <img id="photo-lb-img" src="" alt="" style="max-width:100vw;max-height:100vh;object-fit:contain;touch-action:pinch-zoom;user-select:none;" onclick="closePhotoLightbox()" />
+        </div>
+
         <div id="video-fs-modal">
           <div class="vfs-header">
             <span class="vfs-title" id="vfs-title">Video</span>
@@ -3104,6 +3116,7 @@ body {
             <button class="vfs-btn" onclick="seekVideoFS(-10)"><i class="fas fa-undo"></i></button>
             <button class="vfs-btn play-pause" id="vfs-play-btn" onclick="toggleVideoFS()"><i class="fas fa-play"></i></button>
             <button class="vfs-btn" onclick="seekVideoFS(10)"><i class="fas fa-redo"></i></button>
+            <button class="vfs-btn" id="vfs-save-btn" onclick="saveMediaToDevice('video')" title="Save to device"><i class="fas fa-download"></i></button>
           </div>
         </div>
       </div>
@@ -5555,7 +5568,7 @@ function sendGIF(gifUrl, title) {
   if (gifUrl) {
     row.innerHTML = `<div class="msg-group">
       <div class="bubble sent-bubble gif-bubble" style="padding:4px;max-width:200px;">
-        <img src="${gifUrl}" alt="${title||'GIF'}" style="width:100%;border-radius:12px;display:block;" loading="lazy"/>
+        <img src="${gifUrl}" alt="${title||'GIF'}" style="width:100%;border-radius:12px;display:block;cursor:pointer;" loading="lazy" onclick="openPhotoLightbox(this.src,'GIF')"/>
         <div class="gif-tag" style="font-size:9px;font-weight:700;color:var(--neon-purple);padding:2px 6px;">GIF</div>
       </div>
       <div class="msg-meta">${getTime()} ✓✓</div></div>`;
@@ -5752,9 +5765,10 @@ function handleChatPhotoSelect(input) {
     if (!container) return;
     const row = document.createElement('div');
     row.className = 'msg-row sent';
+    const imgSrc = e.target.result;
     row.innerHTML = `<div class="msg-group">
       <div class="bubble sent-bubble" style="padding:4px;max-width:220px;">
-        <img src="${e.target.result}" style="width:100%;border-radius:12px;display:block;" />
+        <img src="${imgSrc}" style="width:100%;border-radius:12px;display:block;cursor:pointer;" onclick="openPhotoLightbox(this.src,'Photo')" />
       </div>
       <div class="msg-meta">${getTime()} ✓✓</div></div>`;
     container.insertBefore(row, typingRow);
@@ -8715,7 +8729,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.9.0';
+const APP_VERSION = 'v6.9.1';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -9226,13 +9240,29 @@ function toggleCruiseInfoPopup() {
     closeCruiseInfoPopup();
     return;
   }
-  // Populate popup with saved cruise info
-  let data = null;
-  try { data = JSON.parse(localStorage.getItem('cruiseInfo') || 'null'); } catch(e) {}
-  const noInfo = document.getElementById('popup-no-info');
+  // Populate popup — read from both storage keys and merge (cruiseInfo screen + profile edit screen)
+  let data = {};
+  try {
+    // 1. Read from dedicated cruise info screen key
+    const ci = JSON.parse(localStorage.getItem('cruiseInfo') || 'null');
+    if (ci) data = { ...data, ...ci };
+  } catch(e) {}
+  try {
+    // 2. Read from profile key (fields: cruiseline, ship, departure, returndate, route)
+    const prof = JSON.parse(localStorage.getItem('cc-profile-v1') || 'null');
+    if (prof) {
+      if (!data.line  && prof.cruiseline) data.line   = prof.cruiseline;
+      if (!data.ship  && prof.ship)       data.ship   = prof.ship;
+      if (!data.depart && prof.departure) data.depart = prof.departure;
+      if (!data.ret   && prof.returndate) data.ret    = prof.returndate;
+      if (!data.dest  && prof.route)      data.dest   = prof.route;
+    }
+  } catch(e) {}
+
+  const noInfo  = document.getElementById('popup-no-info');
   const details = document.getElementById('popup-cruise-details');
-  if (data && (data.ship || data.line || data.dest || data.depart)) {
-    if (noInfo) noInfo.style.display = 'none';
+  if (data.ship || data.line || data.dest || data.depart) {
+    if (noInfo)  noInfo.style.display  = 'none';
     if (details) details.style.display = 'block';
     const shipEl   = document.getElementById('popup-ship');
     const lineEl   = document.getElementById('popup-line');
@@ -9247,7 +9277,7 @@ function toggleCruiseInfoPopup() {
     if (destEl)   destEl.textContent   = data.dest   || '—';
     if (cabinEl)  cabinEl.textContent  = data.cabin  || '—';
   } else {
-    if (noInfo) noInfo.style.display = 'block';
+    if (noInfo)  noInfo.style.display  = 'block';
     if (details) details.style.display = 'none';
   }
   popup.style.display = 'block';
@@ -9423,6 +9453,79 @@ function showInstallScreen() {
   }
 }
 
+
+/* ── Photo Lightbox ── */
+let _lightboxSrc = '';
+
+function openPhotoLightbox(src, title) {
+  _lightboxSrc = src;
+  const lb  = document.getElementById('photo-lightbox');
+  const img = document.getElementById('photo-lb-img');
+  const ttl = document.getElementById('photo-lb-title');
+  if (!lb || !img) return;
+  img.src = src;
+  if (ttl) ttl.textContent = title || 'Photo';
+  lb.style.display = 'flex';
+  // Close on Escape
+  document.addEventListener('keydown', _lbKeyClose, { once: true });
+}
+
+function closePhotoLightbox() {
+  const lb = document.getElementById('photo-lightbox');
+  if (lb) lb.style.display = 'none';
+  document.removeEventListener('keydown', _lbKeyClose);
+}
+
+function _lbKeyClose(e) {
+  if (e.key === 'Escape') closePhotoLightbox();
+}
+
+/* ── Save Media to Device ── */
+let _currentVideoSrc = ''; // set by openVideoFS
+
+function saveMediaToDevice(type) {
+  let src = '';
+  let filename = '';
+  if (type === 'photo') {
+    src = _lightboxSrc;
+    filename = 'cruise-crews-photo-' + Date.now() + '.jpg';
+  } else if (type === 'video') {
+    const vid = document.getElementById('video-fs-video');
+    src = vid ? vid.src : '';
+    filename = 'cruise-crews-video-' + Date.now() + '.mp4';
+  }
+  if (!src) { showToast('⚠️ Nothing to save'); return; }
+
+  // For data URLs (photos from camera roll / file picker)
+  if (src.startsWith('data:')) {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = filename;
+    a.click();
+    showToast('✅ Saved to device!');
+    return;
+  }
+
+  // For blob URLs (recorded videos) or remote URLs
+  fetch(src)
+    .then(r => r.blob())
+    .then(blob => {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      showToast('✅ Saved to device!');
+    })
+    .catch(() => {
+      // Fallback: open in new tab so user can long-press save
+      window.open(src, '_blank');
+      showToast('📱 Long-press the media to save it');
+    });
+}
 
 /* ── Crew Persistence (localStorage) ── */
 const USER_CREWS_KEY = 'cc-user-crews-v1';
