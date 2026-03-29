@@ -5,7 +5,7 @@
   <!-- ===== NUCLEAR SW CACHE BUSTER — runs before anything else ===== -->
   <script>
   (function(){
-    var REQUIRED_CACHE = 'cruise-crews-v6.8.1';
+    var REQUIRED_CACHE = 'cruise-crews-v6.8.2';
     if (!('serviceWorker' in navigator) || !('caches' in window)) return;
     // Unregister any SW whose active cache is not the required version
     navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -18,7 +18,7 @@
           var mc = new MessageChannel();
           mc.port1.onmessage = function(e){
             var ver = e.data && e.data.version;
-            if (ver && ver !== 'v6.8.1') {
+            if (ver && ver !== 'v6.8.2') {
               // Wrong version — unregister and reload
               reg.unregister().then(function(){ window.location.reload(true); });
             }
@@ -4072,10 +4072,13 @@ body {
         <div class="video-modal-controls">
           <!-- Record state -->
           <div id="video-ctrl-record" style="display:flex;gap:10px;width:100%;">
-            <button class="video-modal-btn" id="video-start-btn" onclick="beginRecording()">
+            <button class="video-modal-btn" id="video-flip-btn" onclick="flipVideoCamera()" title="Flip Camera" style="flex:0 0 auto;padding:0 14px;">
+              <i class="fas fa-camera-rotate" id="video-flip-icon"></i>
+            </button>
+            <button class="video-modal-btn" id="video-start-btn" onclick="beginRecording()" style="flex:1;">
               <i class="fas fa-circle" style="color:#FF4040;"></i> Start Recording
             </button>
-            <button class="video-modal-btn" id="video-stop-btn" style="display:none;" onclick="stopRecording()">
+            <button class="video-modal-btn" id="video-stop-btn" style="display:none;flex:1;" onclick="stopRecording()">
               <i class="fas fa-stop" style="color:#FF4040;"></i> Stop
             </button>
           </div>
@@ -5565,6 +5568,7 @@ let _recordedChunks = [];
 let _recordTimer   = null;
 let _recordSecs    = 0;
 const MAX_REC_SECS = 60;
+let _videoFacingMode = 'user'; // default to front camera for video messages
 
 async function startVideoRecord() {
   closeAttach();
@@ -5586,7 +5590,7 @@ async function startVideoRecord() {
 
   // Request camera
   try {
-    _mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
+    _mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: _videoFacingMode }, audio: true });
     const preview = document.getElementById('video-preview');
     preview.srcObject = _mediaStream;
     preview.play();
@@ -5620,6 +5624,8 @@ function beginRecording() {
   document.getElementById('video-start-btn').style.display = 'none';
   document.getElementById('video-stop-btn').style.display  = '';
   document.getElementById('video-timer').style.display     = 'block';
+  const flipBtn = document.getElementById('video-flip-btn');
+  if (flipBtn) flipBtn.style.display = 'none'; // can't flip mid-recording
   playPTTBeep();
 
   _recordSecs = 0;
@@ -5690,6 +5696,35 @@ function closeVideoModal(e) {
   }
   clearInterval(_recordTimer);
   if (_mediaStream) { _mediaStream.getTracks().forEach(t => t.stop()); _mediaStream = null; }
+}
+
+async function flipVideoCamera() {
+  // Toggle facing mode
+  _videoFacingMode = _videoFacingMode === 'user' ? 'environment' : 'user';
+  const label = _videoFacingMode === 'user' ? 'Front camera' : 'Rear camera';
+
+  // Spin the flip icon
+  const icon = document.getElementById('video-flip-icon');
+  if (icon) {
+    icon.style.transition = 'transform 0.35s ease';
+    icon.style.transform = 'rotate(180deg)';
+    setTimeout(() => { icon.style.transform = 'rotate(0deg)'; }, 350);
+  }
+
+  // Stop current stream
+  if (_mediaStream) { _mediaStream.getTracks().forEach(t => t.stop()); _mediaStream = null; }
+
+  // Start new stream with new facing mode
+  try {
+    _mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: _videoFacingMode }, audio: true });
+    const preview = document.getElementById('video-preview');
+    if (preview) { preview.srcObject = _mediaStream; preview.play(); }
+    showToast('📷 ' + label);
+  } catch(err) {
+    showToast('📷 Camera switch not available');
+    // Revert
+    _videoFacingMode = _videoFacingMode === 'user' ? 'environment' : 'user';
+  }
 }
 
 function handleChatPhotoSelect(input) {
@@ -8661,7 +8696,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.8.1';
+const APP_VERSION = 'v6.8.2';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -9230,7 +9265,7 @@ function showWalkingThePlank(memberName) {
       <div style="font-size:48px;margin-bottom:8px;animation:plankBounce 0.6s ease infinite alternate;">🏴‍☠️</div>
       <div style="font-size:28px;font-weight:800;color:#FF6B35;margin-bottom:4px;text-shadow:0 0 20px rgba(255,107,53,0.5);">WALK THE PLANK!</div>
       <div style="font-size:14px;color:#A0A0C0;margin-bottom:20px;">${memberName} has been removed from the crew</div>
-      <div style="display:inline-block;transform:scaleX(-1);"><div style="font-size:56px;animation:plankWalk 1.8s linear forwards;display:inline-block;">🚶</div></div>
+      <div style="font-size:56px;animation:plankWalk 1.8s ease-in forwards;display:inline-block;transform:scaleX(-1);">🚶‍♂️</div>
       <div style="font-size:32px;margin-top:-8px;">🌊🌊🌊🌊🌊</div>
       <div style="margin-top:20px;font-size:13px;color:#606080;">Arrr! They be swimmin' with the fishes now!</div>
     </div>
@@ -9243,7 +9278,7 @@ function showWalkingThePlank(memberName) {
     style.id = 'plank-anim-style';
     style.textContent = `
       @keyframes plankBounce { from { transform: rotate(-10deg) scale(1); } to { transform: rotate(10deg) scale(1.15); } }
-      @keyframes plankWalk { 0% { transform: translateX(-80px); opacity:1; } 70% { transform: translateX(40px); opacity:1; } 85% { transform: translateX(60px) translateY(10px); opacity:0.8; } 100% { transform: translateX(80px) translateY(40px); opacity:0; } }
+      @keyframes plankWalk { 0% { transform: scaleX(-1) translateX(-100px); opacity:1; } 65% { transform: scaleX(-1) translateX(20px); opacity:1; } 80% { transform: scaleX(-1) translateX(50px) translateY(8px); opacity:0.9; } 100% { transform: scaleX(-1) translateX(90px) translateY(50px); opacity:0; } }
     `;
     document.head.appendChild(style);
   }
