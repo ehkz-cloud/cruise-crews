@@ -2,6 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!-- ===== NUCLEAR SW CACHE BUSTER — runs before anything else ===== -->
+  <script>
+  (function(){
+    var REQUIRED_CACHE = 'cruise-crews-v6.8.0';
+    if (!('serviceWorker' in navigator) || !('caches' in window)) return;
+    // Unregister any SW whose active cache is not the required version
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(reg){
+        var sw = reg.active || reg.waiting || reg.installing;
+        // Always force update check
+        reg.update();
+        // If the SW is active and we can message it, ask its version
+        if (reg.active) {
+          var mc = new MessageChannel();
+          mc.port1.onmessage = function(e){
+            var ver = e.data && e.data.version;
+            if (ver && ver !== 'v6.8.0') {
+              // Wrong version — unregister and reload
+              reg.unregister().then(function(){ window.location.reload(true); });
+            }
+          };
+          reg.active.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
+        }
+      });
+    });
+    // Also nuke any caches that are not the required one
+    caches.keys().then(function(keys){
+      keys.forEach(function(key){
+        if (key !== REQUIRED_CACHE) {
+          caches.delete(key);
+          console.log('[CacheBust] Deleted stale cache:', key);
+        }
+      });
+    });
+  })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
   <title>Cruise Crews – Stay Connected at Sea</title>
 
