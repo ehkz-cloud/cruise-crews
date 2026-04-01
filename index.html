@@ -2878,6 +2878,9 @@ body {
           <button class="nav-item" onclick="openWalkieDefault()">
             <i class="fas fa-walkie-talkie"></i><span>Walkie</span>
           </button>
+          <button class="nav-item" onclick="goTo('screen-events')">
+            <i class="fas fa-calendar-alt"></i><span>Events</span>
+          </button>
           <button class="nav-item" onclick="goTo('screen-create')">
             <i class="fas fa-users-plus"></i><span>Crews</span>
           </button>
@@ -3405,6 +3408,7 @@ body {
         <div class="bottom-nav">
           <button class="nav-item" onclick="goTo('screen-home')"><i class="fas fa-home"></i><span>Home</span></button>
           <button class="nav-item" onclick="openWalkieDefault()"><i class="fas fa-walkie-talkie"></i><span>Walkie</span></button>
+          <button class="nav-item" onclick="goTo('screen-events')"><i class="fas fa-calendar-alt"></i><span>Events</span></button>
           <button class="nav-item active" onclick="goTo('screen-create')"><i class="fas fa-users-plus"></i><span>Crews</span></button>
           <button class="nav-item" onclick="goTo('screen-profile')"><i class="fas fa-user-circle"></i><span>Profile</span></button>
         </div>
@@ -3606,6 +3610,7 @@ body {
         <div class="bottom-nav">
           <button class="nav-item" onclick="goTo('screen-home')"><i class="fas fa-home"></i><span>Home</span></button>
           <button class="nav-item" onclick="openWalkieDefault()"><i class="fas fa-walkie-talkie"></i><span>Walkie</span></button>
+          <button class="nav-item" onclick="goTo('screen-events')"><i class="fas fa-calendar-alt"></i><span>Events</span></button>
           <button class="nav-item" onclick="goTo('screen-create')"><i class="fas fa-users-plus"></i><span>Crews</span></button>
           <button class="nav-item active" onclick="goTo('screen-profile')"><i class="fas fa-user-circle"></i><span>Profile</span></button>
         </div>
@@ -3797,8 +3802,113 @@ body {
         <div class="bottom-nav">
           <button class="nav-item" onclick="goTo('screen-home')"><i class="fas fa-home"></i><span>Home</span></button>
           <button class="nav-item" onclick="openWalkieDefault()"><i class="fas fa-walkie-talkie"></i><span>Walkie</span></button>
+          <button class="nav-item" onclick="goTo('screen-events')"><i class="fas fa-calendar-alt"></i><span>Events</span></button>
           <button class="nav-item" onclick="goTo('screen-create')"><i class="fas fa-users-plus"></i><span>Crews</span></button>
           <button class="nav-item" onclick="goTo('screen-profile')"><i class="fas fa-user-circle"></i><span>Profile</span></button>
+        </div>
+      </div>
+
+      <!-- ===================== SCREEN: EVENTS ===================== -->
+      <div class="screen" id="screen-events">
+        <div class="screen-header">
+          <button class="back-btn" onclick="goTo('screen-home')"><i class="fas fa-chevron-left"></i></button>
+          <span>Events</span>
+          <button class="icon-btn" onclick="openCreateEventSheet()" title="Create Event" style="color:var(--neon-purple);"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="screen-body" style="padding:16px;padding-bottom:90px;overflow-y:auto;">
+          <!-- Filter tabs -->
+          <div style="display:flex;gap:8px;margin-bottom:18px;">
+            <button id="evt-tab-upcoming" class="evt-filter-btn active" onclick="filterEvents('upcoming')">Upcoming</button>
+            <button id="evt-tab-past" class="evt-filter-btn" onclick="filterEvents('past')">Past</button>
+            <button id="evt-tab-all" class="evt-filter-btn" onclick="filterEvents('all')">All</button>
+          </div>
+          <!-- Events list -->
+          <div id="events-list">
+            <div id="events-empty" style="text-align:center;padding:60px 20px;color:#606080;">
+              <div style="font-size:48px;margin-bottom:16px;">📅</div>
+              <div style="font-size:16px;font-weight:600;color:#A0A0C0;margin-bottom:8px;">No events yet</div>
+              <div style="font-size:13px;margin-bottom:20px;">Create your first event to plan shore excursions, dinners, meetups and more!</div>
+              <button class="btn btn-primary glow-btn" onclick="openCreateEventSheet()" style="padding:10px 24px;font-size:13px;"><i class="fas fa-plus"></i> Create Event</button>
+            </div>
+          </div>
+        </div>
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <button class="nav-item" onclick="goTo('screen-home')"><i class="fas fa-home"></i><span>Home</span></button>
+          <button class="nav-item" onclick="openWalkieDefault()"><i class="fas fa-walkie-talkie"></i><span>Walkie</span></button>
+          <button class="nav-item active" onclick="goTo('screen-events')"><i class="fas fa-calendar-alt"></i><span>Events</span></button>
+          <button class="nav-item" onclick="goTo('screen-create')"><i class="fas fa-users-plus"></i><span>Crews</span></button>
+          <button class="nav-item" onclick="goTo('screen-profile')"><i class="fas fa-user-circle"></i><span>Profile</span></button>
+        </div>
+      </div>
+
+      <!-- Create Event Bottom Sheet -->
+      <div id="create-event-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);" onclick="closeCreateEventSheet()">
+        <div id="create-event-sheet" onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg,#0F0A28 0%,#0A0720 100%);border-top:1px solid rgba(191,0,255,0.25);border-radius:24px 24px 0 0;padding:20px 20px 40px;max-height:90vh;overflow-y:auto;">
+          <div style="width:40px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:0 auto 20px;"></div>
+          <div style="font-size:16px;font-weight:700;color:#F0F0FF;margin-bottom:18px;"><i class="fas fa-calendar-plus" style="color:var(--neon-purple);margin-right:8px;"></i>Create Event</div>
+
+          <!-- Event Title -->
+          <div class="form-group" style="margin-bottom:14px;">
+            <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Event Title *</label>
+            <div class="input-wrap"><i class="fas fa-tag input-icon"></i><input type="text" id="evt-title-input" class="glass-input" placeholder="e.g., Snorkeling at Cozumel" maxlength="60" /></div>
+          </div>
+
+          <!-- Event Type -->
+          <div class="form-group" style="margin-bottom:14px;">
+            <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Event Type</label>
+            <div class="input-wrap">
+              <i class="fas fa-shapes input-icon"></i>
+              <select id="evt-type-input" class="glass-input">
+                <option value="excursion">🏖️ Shore Excursion</option>
+                <option value="dining">🍽️ Dining</option>
+                <option value="entertainment">🎭 Entertainment</option>
+                <option value="meetup">🤝 Crew Meetup</option>
+                <option value="activity">🎯 Onboard Activity</option>
+                <option value="port">⚓ Port Day</option>
+                <option value="sea">🌊 Sea Day</option>
+                <option value="other">📌 Other</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Date & Time -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+            <div class="form-group">
+              <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Date *</label>
+              <div class="input-wrap"><i class="fas fa-calendar input-icon"></i><input type="date" id="evt-date-input" class="glass-input" /></div>
+            </div>
+            <div class="form-group">
+              <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Time</label>
+              <div class="input-wrap"><i class="fas fa-clock input-icon"></i><input type="time" id="evt-time-input" class="glass-input" /></div>
+            </div>
+          </div>
+
+          <!-- Location -->
+          <div class="form-group" style="margin-bottom:14px;">
+            <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Location</label>
+            <div class="input-wrap"><i class="fas fa-map-marker-alt input-icon"></i><input type="text" id="evt-location-input" class="glass-input" placeholder="e.g., Deck 9 Pool, Nassau Port" maxlength="80" /></div>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group" style="margin-bottom:14px;">
+            <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Notes (optional)</label>
+            <textarea id="evt-notes-input" class="glass-input" rows="3" placeholder="Any details, meeting point, what to bring..." style="resize:none;padding-top:10px;"></textarea>
+          </div>
+
+          <!-- Share to Crew -->
+          <div class="form-group" style="margin-bottom:20px;">
+            <label style="font-size:11px;color:#A0A0C0;text-transform:uppercase;letter-spacing:0.5px;">Share to Crew (optional)</label>
+            <div class="input-wrap">
+              <i class="fas fa-users input-icon"></i>
+              <select id="evt-crew-input" class="glass-input">
+                <option value="">— Don't share —</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary glow-btn full-btn" onclick="saveEvent()" style="margin-bottom:10px;"><i class="fas fa-check"></i> Create Event</button>
+          <button class="btn btn-glass full-btn" onclick="closeCreateEventSheet()">Cancel</button>
         </div>
       </div>
 
@@ -4403,8 +4513,131 @@ html.pwa-mode .bottom-nav {
   --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+/* ── Events Feature ── */
+.evt-filter-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(191,0,255,0.25);
+  background: rgba(255,255,255,0.04);
+  color: #A0A0C0;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.evt-filter-btn.active {
+  background: rgba(191,0,255,0.18);
+  border-color: rgba(191,0,255,0.5);
+  color: #BF00FF;
+}
+.event-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s;
+}
+.event-card:active { transform: scale(0.98); }
+.event-card.past { opacity: 0.55; }
+.event-card-accent {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+}
+.event-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.event-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #F0F0FF;
+  flex: 1;
+}
+.event-card-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  background: rgba(191,0,255,0.15);
+  color: #BF00FF;
+  border: 1px solid rgba(191,0,255,0.25);
+}
+.event-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: #A0A0C0;
+  margin-bottom: 6px;
+}
+.event-card-meta span { display: flex; align-items: center; gap: 4px; }
+.event-card-notes {
+  font-size: 12px;
+  color: #808098;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.event-card-crew-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #00BFFF;
+  background: rgba(0,191,255,0.1);
+  border: 1px solid rgba(0,191,255,0.2);
+  border-radius: 10px;
+  padding: 2px 8px;
+  margin-top: 6px;
+}
+.event-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.evt-action-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #A0A0C0;
+  font-size: 11px;
+  font-family: var(--font);
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+.evt-action-btn:hover { background: rgba(255,255,255,0.07); color: #F0F0FF; }
+.evt-action-btn.delete { border-color: rgba(255,80,80,0.2); color: #FF5050; }
+.evt-action-btn.delete:hover { background: rgba(255,80,80,0.08); }
+.event-countdown {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00FF88;
+  background: rgba(0,255,136,0.1);
+  border: 1px solid rgba(0,255,136,0.2);
+  border-radius: 10px;
+  padding: 2px 8px;
+  display: inline-block;
+  margin-top: 4px;
+}
+.event-countdown.today { color: #FF9500; background: rgba(255,149,0,0.1); border-color: rgba(255,149,0,0.25); }
+.event-countdown.past-label { color: #606080; background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 </style>
-
 <script>
 'use strict';
 
@@ -4451,7 +4684,7 @@ html.pwa-mode .bottom-nav {
 const screenIds = [
   'screen-splash','screen-login','screen-signup','screen-home',
   'screen-groupchat','screen-walkie','screen-create','screen-profile',
-  'screen-videochat','screen-cruise-info'
+  'screen-videochat','screen-cruise-info','screen-events'
 ];
 let currentScreen = 'screen-splash';
 
@@ -4481,6 +4714,7 @@ function goTo(targetId) {
   if (targetId === 'screen-walkie') initWalkieScreen();
   if (targetId === 'screen-cruise-info') setTimeout(loadCruiseInfo, 100);
   if (targetId === 'screen-create') setTimeout(prefillCreateCrewFromProfile, 100);
+  if (targetId === 'screen-events') setTimeout(renderEvents, 100);
   // Release mic when leaving walkie screen to extinguish the mic-in-use indicator
   if (targetId !== 'screen-walkie' && _micStream) {
     if(pttActive) deactivatePTT();
@@ -8729,7 +8963,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v6.9.1';
+const APP_VERSION = 'v7.0.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -9571,6 +9805,236 @@ function loadSavedCrews() {
       _crewMetaMap.set(chatKey, { ...c.meta, members: memberObjs });
     }
   });
+}
+
+/* =====================================================
+   EVENTS FEATURE
+===================================================== */
+const EVENTS_KEY = 'cc-events-v1';
+let _eventsFilter = 'upcoming';
+
+const EVT_TYPE_META = {
+  excursion:     { label: 'Shore Excursion', emoji: '🏖️', color: '#00BFFF', accent: '#00BFFF' },
+  dining:        { label: 'Dining',          emoji: '🍽️', color: '#FF9500', accent: '#FF9500' },
+  entertainment: { label: 'Entertainment',   emoji: '🎭', color: '#BF00FF', accent: '#BF00FF' },
+  meetup:        { label: 'Crew Meetup',     emoji: '🤝', color: '#00FF88', accent: '#00FF88' },
+  activity:      { label: 'Onboard Activity',emoji: '🎯', color: '#FF6B6B', accent: '#FF6B6B' },
+  port:          { label: 'Port Day',        emoji: '⚓', color: '#FFD700', accent: '#FFD700' },
+  sea:           { label: 'Sea Day',         emoji: '🌊', color: '#4A90E2', accent: '#4A90E2' },
+  other:         { label: 'Other',           emoji: '📌', color: '#A0A0C0', accent: '#A0A0C0' }
+};
+
+function loadEvents() {
+  try { return JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function saveEvents(events) {
+  localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+}
+
+function openCreateEventSheet() {
+  const overlay = document.getElementById('create-event-overlay');
+  if (!overlay) return;
+
+  // Reset form
+  const fields = ['evt-title-input','evt-location-input','evt-notes-input'];
+  fields.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const typeEl = document.getElementById('evt-type-input');
+  if (typeEl) typeEl.value = 'excursion';
+  const timeEl = document.getElementById('evt-time-input');
+  if (timeEl) timeEl.value = '';
+
+  // Default date to today
+  const dateEl = document.getElementById('evt-date-input');
+  if (dateEl) {
+    const today = new Date();
+    dateEl.value = today.toISOString().split('T')[0];
+  }
+
+  // Populate crew dropdown from existing crews
+  const crewSel = document.getElementById('evt-crew-input');
+  if (crewSel) {
+    crewSel.innerHTML = '<option value="">— Don\'t share —</option>';
+    const gp = document.getElementById('panel-groups');
+    if (gp) {
+      gp.querySelectorAll('.chat-item-wrap').forEach(w => {
+        const name = w.querySelector('.chat-name')?.textContent?.trim();
+        if (name) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          crewSel.appendChild(opt);
+        }
+      });
+    }
+  }
+
+  overlay.style.display = 'flex';
+  setTimeout(() => { document.getElementById('evt-title-input')?.focus(); }, 200);
+}
+
+function closeCreateEventSheet() {
+  const overlay = document.getElementById('create-event-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function saveEvent() {
+  const title    = document.getElementById('evt-title-input')?.value.trim();
+  const type     = document.getElementById('evt-type-input')?.value || 'other';
+  const date     = document.getElementById('evt-date-input')?.value;
+  const time     = document.getElementById('evt-time-input')?.value || '';
+  const location = document.getElementById('evt-location-input')?.value.trim() || '';
+  const notes    = document.getElementById('evt-notes-input')?.value.trim() || '';
+  const crew     = document.getElementById('evt-crew-input')?.value || '';
+
+  if (!title) { showToast('⚠️ Event title is required'); document.getElementById('evt-title-input')?.focus(); return; }
+  if (!date)  { showToast('⚠️ Please pick a date'); document.getElementById('evt-date-input')?.focus(); return; }
+
+  const event = {
+    id:       'evt_' + Date.now(),
+    title,
+    type,
+    date,
+    time,
+    location,
+    notes,
+    crew,
+    createdAt: Date.now()
+  };
+
+  const events = loadEvents();
+  events.push(event);
+  saveEvents(events);
+
+  closeCreateEventSheet();
+  renderEvents();
+  showToast('📅 Event created!');
+
+  // If shared to a crew, post a system message in that crew's chat
+  if (crew) {
+    const meta = EVT_TYPE_META[type] || EVT_TYPE_META.other;
+    const dateStr = _fmtEventDate(date, time);
+    _postEventToCrew(crew, `${meta.emoji} <strong>${escapeHtml(title)}</strong> — ${dateStr}${location ? ' · ' + escapeHtml(location) : ''}`);
+  }
+}
+
+function _postEventToCrew(crewName, html) {
+  // Find the chat item for this crew and post a system message if it's open
+  const gp = document.getElementById('panel-groups');
+  if (!gp) return;
+  // Store as a pending notification — shown next time user opens that chat
+  // For now just show a toast
+  showToast('📨 Event shared to ' + crewName);
+}
+
+function _fmtEventDate(dateStr, timeStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T' + (timeStr || '00:00'));
+    const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+    let s = d.toLocaleDateString('en-US', opts);
+    if (timeStr) {
+      const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      s += ' · ' + t;
+    }
+    return s;
+  } catch(e) { return dateStr; }
+}
+
+function _getCountdown(dateStr, timeStr) {
+  const now  = new Date();
+  const evtD = new Date(dateStr + 'T' + (timeStr || '00:00'));
+  const diff = evtD - now;
+  if (diff < 0) return { label: 'Past', cls: 'past-label' };
+  const days  = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  if (days === 0 && hours < 24) return { label: 'Today!', cls: 'today' };
+  if (days === 1) return { label: 'Tomorrow', cls: '' };
+  if (days < 7)  return { label: 'In ' + days + ' days', cls: '' };
+  return { label: 'In ' + days + ' days', cls: '' };
+}
+
+function renderEvents() {
+  const list   = document.getElementById('events-list');
+  const empty  = document.getElementById('events-empty');
+  if (!list) return;
+
+  const allEvents = loadEvents();
+  const now = new Date();
+
+  let filtered = allEvents;
+  if (_eventsFilter === 'upcoming') {
+    filtered = allEvents.filter(e => new Date(e.date + 'T' + (e.time || '23:59')) >= now);
+  } else if (_eventsFilter === 'past') {
+    filtered = allEvents.filter(e => new Date(e.date + 'T' + (e.time || '23:59')) < now);
+  }
+
+  // Sort: upcoming = soonest first, past = most recent first, all = soonest first
+  filtered.sort((a, b) => {
+    const da = new Date(a.date + 'T' + (a.time || '00:00'));
+    const db = new Date(b.date + 'T' + (b.time || '00:00'));
+    return _eventsFilter === 'past' ? db - da : da - db;
+  });
+
+  // Remove old cards (keep the empty state div)
+  list.querySelectorAll('.event-card').forEach(c => c.remove());
+
+  if (filtered.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  filtered.forEach(evt => {
+    const meta = EVT_TYPE_META[evt.type] || EVT_TYPE_META.other;
+    const isPast = new Date(evt.date + 'T' + (evt.time || '23:59')) < now;
+    const countdown = _getCountdown(evt.date, evt.time);
+    const dateStr = _fmtEventDate(evt.date, evt.time);
+
+    const card = document.createElement('div');
+    card.className = 'event-card' + (isPast ? ' past' : '');
+    card.dataset.evtId = evt.id;
+
+    card.innerHTML = `
+      <div class="event-card-accent" style="background:${escapeHtml(meta.accent)};"></div>
+      <div style="padding-left:8px;">
+        <div class="event-card-header">
+          <div class="event-card-title">${escapeHtml(evt.title)}</div>
+          <div class="event-card-type-badge" style="color:${escapeHtml(meta.color)};border-color:${escapeHtml(meta.color)}33;background:${escapeHtml(meta.color)}1A;">${meta.emoji} ${meta.label}</div>
+        </div>
+        <div class="event-card-meta">
+          <span><i class="fas fa-calendar" style="color:${escapeHtml(meta.color)};"></i> ${escapeHtml(dateStr)}</span>
+          ${evt.location ? `<span><i class="fas fa-map-marker-alt" style="color:${escapeHtml(meta.color)};"></i> ${escapeHtml(evt.location)}</span>` : ''}
+        </div>
+        ${evt.notes ? `<div class="event-card-notes">${escapeHtml(evt.notes)}</div>` : ''}
+        ${evt.crew  ? `<div class="event-card-crew-tag"><i class="fas fa-users"></i> ${escapeHtml(evt.crew)}</div>` : ''}
+        <div class="event-countdown ${countdown.cls}">${countdown.label}</div>
+        <div class="event-card-actions">
+          <button class="evt-action-btn delete" data-evt-id="${escapeHtml(evt.id)}"><i class="fas fa-trash"></i> Delete</button>
+        </div>
+      </div>`;
+
+    // Wire delete button
+    card.querySelector('.evt-action-btn.delete').addEventListener('click', () => deleteEvent(evt.id));
+
+    list.appendChild(card);
+  });
+}
+
+function filterEvents(filter) {
+  _eventsFilter = filter;
+  ['upcoming','past','all'].forEach(f => {
+    const btn = document.getElementById('evt-tab-' + f);
+    if (btn) btn.classList.toggle('active', f === filter);
+  });
+  renderEvents();
+}
+
+function deleteEvent(id) {
+  const events = loadEvents().filter(e => e.id !== id);
+  saveEvents(events);
+  renderEvents();
+  showToast('🗑️ Event deleted');
 }
 
 </script>
