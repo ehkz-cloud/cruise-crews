@@ -3,7 +3,7 @@
    Offline caching + push notification support
 ===================================================== */
 const SW_VERSION  = 'v6.9.1';
-const CACHE_NAME  = 'cruise-crews-v7.0.0';
+const CACHE_NAME  = 'cruise-crews-v7.0.1';
 const STATIC_ASSETS = [
   './',
   './index.html',

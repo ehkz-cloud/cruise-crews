@@ -2672,22 +2672,12 @@ body {
               </div>
               <button class="chat-delete-btn" onclick="deleteChatItem(this)" title="Delete chat"><i class="fas fa-trash-alt"></i></button>
             </div>
-            <div class="section-label">Upcoming Events</div>
-            <div class="event-card" onclick="goTo('screen-create')">
-              <div class="event-icon"><i class="fas fa-utensils"></i></div>
-              <div class="event-info">
-                <span class="event-title">Group Dinner — Deck 7</span>
-                <span class="event-time"><i class="fas fa-clock"></i> Tonight at 7:30 PM</span>
-              </div>
-              <div class="event-rsvp">Join</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <div class="section-label" style="margin-bottom:0;">Upcoming Events</div>
+              <button onclick="goTo('screen-events')" style="background:none;border:none;color:var(--neon-purple);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;">See all <i class="fas fa-chevron-right"></i></button>
             </div>
-            <div class="event-card">
-              <div class="event-icon"><i class="fas fa-water"></i></div>
-              <div class="event-info">
-                <span class="event-title">Snorkeling Excursion</span>
-                <span class="event-time"><i class="fas fa-clock"></i> Tomorrow 8:00 AM</span>
-              </div>
-              <div class="event-rsvp">Join</div>
+            <div id="home-events-preview">
+              <div style="text-align:center;padding:16px 0;color:#606080;font-size:12px;">No upcoming events. <span style="color:var(--neon-purple);cursor:pointer;" onclick="goTo('screen-events')">Create one →</span></div>
             </div>
           </div>
 
@@ -4715,6 +4705,7 @@ function goTo(targetId) {
   if (targetId === 'screen-cruise-info') setTimeout(loadCruiseInfo, 100);
   if (targetId === 'screen-create') setTimeout(prefillCreateCrewFromProfile, 100);
   if (targetId === 'screen-events') setTimeout(renderEvents, 100);
+  if (targetId === 'screen-home') setTimeout(renderHomeEventsPreview, 100);
   // Release mic when leaving walkie screen to extinguish the mic-in-use indicator
   if (targetId !== 'screen-walkie' && _micStream) {
     if(pttActive) deactivatePTT();
@@ -8762,6 +8753,9 @@ document.addEventListener('DOMContentLoaded',function(){
   /* ── Restore any previously created crews from localStorage ── */
   loadSavedCrews();
 
+  /* ── Render home screen events preview ── */
+  setTimeout(renderHomeEventsPreview, 300);
+
   /* ── iOS install CTA: always show on splash for iOS Safari users ── */
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
   const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -8963,7 +8957,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v7.0.0';
+const APP_VERSION = 'v7.0.1';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -9908,6 +9902,7 @@ function saveEvent() {
 
   closeCreateEventSheet();
   renderEvents();
+  renderHomeEventsPreview();
   showToast('📅 Event created!');
 
   // If shared to a crew, post a system message in that crew's chat
@@ -10034,7 +10029,43 @@ function deleteEvent(id) {
   const events = loadEvents().filter(e => e.id !== id);
   saveEvents(events);
   renderEvents();
+  renderHomeEventsPreview();
   showToast('🗑️ Event deleted');
+}
+
+function renderHomeEventsPreview() {
+  const container = document.getElementById('home-events-preview');
+  if (!container) return;
+  const now = new Date();
+  const upcoming = loadEvents()
+    .filter(e => new Date(e.date + 'T' + (e.time || '23:59')) >= now)
+    .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')))
+    .slice(0, 3);
+
+  if (upcoming.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:16px 0;color:#606080;font-size:12px;">No upcoming events. <span style="color:var(--neon-purple);cursor:pointer;" onclick="goTo(\'screen-events\')">Create one →</span></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  upcoming.forEach(evt => {
+    const meta = EVT_TYPE_META[evt.type] || EVT_TYPE_META.other;
+    const dateStr = _fmtEventDate(evt.date, evt.time);
+    const card = document.createElement('div');
+    card.className = 'event-card';
+    card.style.cssText = 'cursor:pointer;';
+    card.innerHTML = `
+      <div class="event-card-accent" style="background:${escapeHtml(meta.accent)};"></div>
+      <div style="padding-left:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#F0F0FF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta.emoji} ${escapeHtml(evt.title)}</div>
+          <div style="font-size:11px;color:#A0A0C0;margin-top:2px;"><i class="fas fa-calendar" style="color:${escapeHtml(meta.color)};margin-right:3px;"></i>${escapeHtml(dateStr)}${evt.location ? ' · ' + escapeHtml(evt.location) : ''}</div>
+        </div>
+        <div onclick="event.stopPropagation();deleteEvent('${escapeHtml(evt.id)}')" style="color:#FF5050;font-size:12px;padding:4px 8px;border:1px solid rgba(255,80,80,0.2);border-radius:8px;cursor:pointer;white-space:nowrap;"><i class="fas fa-trash"></i></div>
+      </div>`;
+    card.addEventListener('click', () => goTo('screen-events'));
+    container.appendChild(card);
+  });
 }
 
 </script>
