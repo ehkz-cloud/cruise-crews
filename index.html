@@ -2587,7 +2587,7 @@ body {
         <div class="chat-tabs">
           <button class="tab-btn active" id="tab-groups" onclick="switchTab('groups')">
             <i class="fas fa-users"></i> Groups
-            <span class="tab-badge">7</span>
+            <span class="tab-badge">7</span><!-- recalculated on init -->
           </button>
           <button class="tab-btn" id="tab-dms" onclick="switchTab('dms')">
             <i class="fas fa-comment-dots"></i> Direct
@@ -5313,33 +5313,34 @@ function openChat(chatItemEl) {
   }
 
   // 5. Clear the unread badge on this specific chat item
-  const badge = chatItemEl.querySelector('.unread-badge');
+    const badge = chatItemEl.querySelector('.unread-badge');
   if (badge) {
     const count = parseInt(badge.textContent, 10) || 0;
     badge.style.transition = 'opacity 0.2s, transform 0.2s';
     badge.style.opacity    = '0';
     badge.style.transform  = 'scale(0)';
-    setTimeout(() => { badge.style.display = 'none'; }, 220);
-
-    // 6. Recalculate tab-badge from remaining visible badges
-    const tab = wrap ? wrap.dataset.tab : null;
-    if (tab && count > 0) {
-      const tabBtnId  = tab === 'groups' ? 'tab-groups' : 'tab-dms';
-      const panelId   = tab === 'groups' ? 'panel-groups' : 'panel-dms';
-      const tabBtn    = document.getElementById(tabBtnId);
-      const panel     = document.getElementById(panelId);
-      const tabBadge  = tabBtn ? tabBtn.querySelector('.tab-badge') : null;
-      if (tabBadge && panel) {
-        let remaining = 0;
-        panel.querySelectorAll('.unread-badge').forEach(b => {
-          if (b !== badge && b.style.display !== 'none') {
-            remaining += parseInt(b.textContent, 10) || 0;
-          }
-        });
-        tabBadge.style.display  = remaining === 0 ? 'none' : '';
-        tabBadge.textContent    = remaining > 9 ? '9+' : String(remaining);
+    // 6. Recalculate tab-badge AFTER the badge is hidden (inside setTimeout so it's excluded from count)
+    setTimeout(() => {
+      badge.style.display = 'none';
+      const tab = wrap ? wrap.dataset.tab : null;
+      if (tab && count > 0) {
+        const tabBtnId  = tab === 'groups' ? 'tab-groups' : 'tab-dms';
+        const panelId   = tab === 'groups' ? 'panel-groups' : 'panel-dms';
+        const tabBtn    = document.getElementById(tabBtnId);
+        const panel     = document.getElementById(panelId);
+        const tabBadge  = tabBtn ? tabBtn.querySelector('.tab-badge') : null;
+        if (tabBadge && panel) {
+          let remaining = 0;
+          panel.querySelectorAll('.unread-badge').forEach(b => {
+            if (b.style.display !== 'none') {
+              remaining += parseInt(b.textContent, 10) || 0;
+            }
+          });
+          tabBadge.style.display  = remaining === 0 ? 'none' : '';
+          tabBadge.textContent    = remaining > 9 ? '9+' : String(remaining);
+        }
       }
-    }
+    }, 230);
     // 7. Bell badge is NOT changed when reading a chat (only notification panel items affect it)
   }
 
@@ -8744,6 +8745,9 @@ document.addEventListener('DOMContentLoaded',function(){
   /* ── Initialize notification badge: 3 notif-panel items + 5+2 group unreads + 1 DM unread = 11 ── */
   updateNotifBadge(11);
 
+  /* ── Initialize tab badges from actual unread badge counts in the DOM ── */
+  initTabBadges();
+
   /* ── Initialize version display ── */
   initVersionDisplay();
 
@@ -8957,7 +8961,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v7.0.1';
+const APP_VERSION = 'v7.0.2';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -10063,11 +10067,37 @@ function renderHomeEventsPreview() {
         </div>
         <div onclick="event.stopPropagation();deleteEvent('${escapeHtml(evt.id)}')" style="color:#FF5050;font-size:12px;padding:4px 8px;border:1px solid rgba(255,80,80,0.2);border-radius:8px;cursor:pointer;white-space:nowrap;"><i class="fas fa-trash"></i></div>
       </div>`;
-    card.addEventListener('click', () => goTo('screen-events'));
+     card.addEventListener('click', () => goTo('screen-events'));
     container.appendChild(card);
   });
 }
 
+/* =====================================================
+   initTabBadges — recalculate Groups and DMs tab
+   badge counts from the actual unread badges in the DOM.
+   Called on page load and can be called any time.
+===================================================== */
+function initTabBadges() {
+  const panels = [
+    { panelId: 'panel-groups', tabId: 'tab-groups' },
+    { panelId: 'panel-dms',    tabId: 'tab-dms'    }
+  ];
+  panels.forEach(({ panelId, tabId }) => {
+    const panel  = document.getElementById(panelId);
+    const tabBtn = document.getElementById(tabId);
+    if (!panel || !tabBtn) return;
+    const tabBadge = tabBtn.querySelector('.tab-badge');
+    if (!tabBadge) return;
+    let total = 0;
+    panel.querySelectorAll('.unread-badge').forEach(b => {
+      if (b.style.display !== 'none') {
+        total += parseInt(b.textContent, 10) || 0;
+      }
+    });
+    tabBadge.textContent   = total > 9 ? '9+' : String(total);
+    tabBadge.style.display = total === 0 ? 'none' : '';
+  });
+}
 </script>
 </body>
 </html>
