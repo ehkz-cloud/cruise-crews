@@ -5,7 +5,7 @@
   <!-- ===== NUCLEAR SW CACHE BUSTER — runs before anything else ===== -->
   <script>
   (function(){
-    var REQUIRED_CACHE = 'cruise-crews-v6.9.1';
+    var REQUIRED_CACHE = 'cruise-crews-v8.0.0';
     if (!('serviceWorker' in navigator) || !('caches' in window)) return;
     // Unregister any SW whose active cache is not the required version
     navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -2319,6 +2319,56 @@ body {
 @media (max-height: 870px) { .phone-frame { height: 780px; } }
 @media (max-height: 800px) { .phone-frame { height: 700px; } }
   </style>
+  <!-- ===== FIREBASE SDK ===== -->
+  <script type="module">
+    // Firebase config
+    import { initializeApp }                                    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword,
+             signInWithEmailAndPassword, signOut,
+             onAuthStateChanged, sendPasswordResetEmail }       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, doc, addDoc, setDoc,
+             getDoc, getDocs, onSnapshot, query, orderBy,
+             limit, serverTimestamp, deleteDoc, updateDoc,
+             where }                                            from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyATccheZVOP91vVhVmpS2DqXdtK3JI0P9E",
+      authDomain:        "cruise-crews.firebaseapp.com",
+      projectId:         "cruise-crews",
+      storageBucket:     "cruise-crews.firebasestorage.app",
+      messagingSenderId: "1074374321380",
+      appId:             "1:1074374321380:web:2b5a7f00388ccc6b08f8f1"
+    };
+
+    const _fbApp  = initializeApp(firebaseConfig);
+    const _fbAuth = getAuth(_fbApp);
+    const _fbDb   = getFirestore(_fbApp);
+
+    // ── Expose to global scope so the main <script> can call them ──
+    window._fb = {
+      auth: _fbAuth,
+      db:   _fbDb,
+      // Auth helpers
+      createUser:    (email, pw)  => createUserWithEmailAndPassword(_fbAuth, email, pw),
+      signIn:        (email, pw)  => signInWithEmailAndPassword(_fbAuth, email, pw),
+      signOut:       ()           => signOut(_fbAuth),
+      resetPassword: (email)      => sendPasswordResetEmail(_fbAuth, email),
+      onAuthChange:  (cb)         => onAuthStateChanged(_fbAuth, cb),
+      // Firestore helpers
+      col:           (path)       => collection(_fbDb, path),
+      docRef:        (path, id)   => doc(_fbDb, path, id),
+      addDoc, setDoc, getDoc, getDocs, onSnapshot,
+      query, orderBy, limit, serverTimestamp, deleteDoc, updateDoc, where,
+    };
+    console.log('[Firebase] SDK loaded ✓');
+
+    // ── Auth state listener — bridge to main script ──
+    onAuthStateChanged(_fbAuth, (user) => {
+      if (typeof window._onFirebaseAuthChange === 'function') {
+        window._onFirebaseAuthChange(user);
+      }
+    });
+  </script>
 </head>
 <body>
 
@@ -2433,9 +2483,9 @@ body {
           </div>
           <div class="form-options">
             <label class="checkbox-wrap"><input type="checkbox" id="login-remember" /> <span>Remember me</span></label>
-            <a href="#" class="link-purple">Forgot password?</a>
+            <a href="#" class="link-purple" onclick="handleForgotPassword();return false;">Forgot password?</a>
           </div>
-          <button type="submit" class="btn btn-primary glow-btn full-btn">
+          <button type="submit" id="login-submit-btn" class="btn btn-primary glow-btn full-btn">
             <i class="fas fa-sign-in-alt"></i> Log In
           </button>
           </form>
@@ -5259,6 +5309,10 @@ function openChat(chatItemEl) {
   _activeChatKey = chatKey;
   // Mark DM row as no longer new
   if (isNewDM && wrap) wrap.dataset.newDm = 'false';
+  // Subscribe to real-time Firestore messages for this chat
+  if (_fbReady() && _currentUser()) {
+    _subscribeToChat(chatKey);
+  }
 
   // Seed _crewMetaMap for this chat if not already set (e.g. demo groups opened directly).
   // Use _resolveCrewMeta first so we don't create a duplicate entry for a key that already
@@ -5370,15 +5424,38 @@ function sendMessage() {
   if (!text) return;
   const container = document.getElementById('messages-area');
   const typingRow  = document.getElementById('typing-row');
-  const row = document.createElement('div');
-  row.className = 'msg-row sent';
-  row.innerHTML = `<div class="msg-group"><div class="bubble sent-bubble">${escapeHtml(text)}</div><div class="msg-meta">${getTime()} ✓✓</div></div>`;
-  container.insertBefore(row, typingRow);
   input.value = '';
   closeAllPanels();
-  scrollToBottom();
   playSendSound();
-  setTimeout(() => simulateReply(container, typingRow), 1800 + Math.random()*1200);
+  // If Firebase is available and user is logged in, send to Firestore
+  const user = _currentUser();
+  if (_fbReady() && user && _activeChatKey) {
+    // Optimistically render the sent message immediately
+    const row = document.createElement('div');
+    row.className = 'msg-row sent';
+    row.innerHTML = `<div class="msg-group"><div class="bubble sent-bubble">${escapeHtml(text)}</div><div class="msg-meta">${getTime()} ✓✓</div></div>`;
+    container.insertBefore(row, typingRow);
+    scrollToBottom();
+    // Get sender info from profile
+    let senderName = 'You', senderAvatar = '';
+    try {
+      const rawProf = localStorage.getItem(PROFILE_KEY);
+      if (rawProf) {
+        const p = JSON.parse(rawProf);
+        senderName   = ((p.firstname || '') + ' ' + (p.lastname || '')).trim() || 'Crew Member';
+        senderAvatar = p.avatar || '';
+      }
+    } catch(_){}
+    _sendFirestoreMessage(_activeChatKey, text, senderName, senderAvatar);
+  } else {
+    // Offline fallback — local only
+    const row = document.createElement('div');
+    row.className = 'msg-row sent';
+    row.innerHTML = `<div class="msg-group"><div class="bubble sent-bubble">${escapeHtml(text)}</div><div class="msg-meta">${getTime()} ✓✓</div></div>`;
+    container.insertBefore(row, typingRow);
+    scrollToBottom();
+    setTimeout(() => simulateReply(container, typingRow), 1800 + Math.random()*1200);
+  }
 }
 
 /* All possible crew members the app knows about */
@@ -7497,7 +7574,7 @@ function openRemoveMemberSheet() {
         <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=${m.seed}&backgroundColor=${m.bg}" alt="${m.name}" style="width:100%;height:100%;" />
       </div>
       <div class="wm-panel-info" style="flex:1;margin-left:12px;">
-        <div style="font-size:13px;font-weight:600;">${m.name}</div>
+        <div style="font-size:13px;font-weight:600;color:#F0F0FF;">${m.name}</div>
         <div style="font-size:11px;color:var(--text-muted);">Member</div>
       </div>`;
     const btn = document.createElement('button');
@@ -7592,7 +7669,7 @@ function openInviteMemberSheet() {
           <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=${m.seed}&backgroundColor=${m.bg}" alt="${m.name}" style="width:100%;height:100%;" />
         </div>
         <div class="wm-panel-info" style="flex:1;margin-left:12px;">
-          <div style="font-size:13px;font-weight:600;">${m.name}</div>
+          <div style="font-size:13px;font-weight:600;color:#F0F0FF;">${m.name}</div>
           <div style="font-size:11px;color:var(--text-muted);">On your cruise</div>
         </div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
@@ -8431,8 +8508,7 @@ function handleSignup() {
 }
 
 function handleSocialLogin(provider) {
-  // Social OAuth not yet connected — show informative message
-  showToast('⚠️ ' + provider + ' sign-in is coming soon! Please use your email and password to sign up or log in.');
+  showToast('⚠️ ' + provider + ' sign-in coming soon! Use email & password for now.');
 }
 
 function handleLogout() {
@@ -8467,6 +8543,11 @@ function togglePwd(inputId, icon) {
 }
 
 function checkSession() {
+  // Check Firebase auth state first (synchronous check via currentUser)
+  if (_fbReady() && _currentUser()) return true;
+  // Fall back to sessionStorage (set by onAuthStateChanged)
+  if (sessionStorage.getItem('cc-fb-uid')) return true;
+  // Legacy localStorage session check
   const raw = localStorage.getItem(SESSION_KEY);
   if(!raw) return false;
   try {
@@ -8730,6 +8811,177 @@ document.addEventListener('click',function(e){
   }
 });
 
+
+/* =====================================================
+   FIREBASE HELPERS — Firestore profile, crews, messages
+===================================================== */
+
+/* ── handleForgotPassword ── */
+function handleForgotPassword() {
+  const emailEl = document.getElementById('login-email');
+  const email = emailEl ? emailEl.value.trim() : '';
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('⚠️ Enter your email address above first, then tap Forgot password.');
+    emailEl?.focus();
+    return;
+  }
+  if (!_fbReady()) { showToast('App still loading…'); return; }
+  window._fb.resetPassword(email)
+    .then(() => showToast('📧 Password reset email sent! Check your inbox.'))
+    .catch(err => {
+      if (err.code === 'auth/user-not-found') showToast('⚠️ No account found with that email.');
+      else showToast('⚠️ Could not send reset email. Try again.');
+    });
+}
+
+/* ── Save user profile to Firestore ── */
+async function _saveFirestoreProfile(uid, profile) {
+  if (!_fbReady() || !uid) return;
+  try {
+    const ref = window._fb.docRef('users', uid);
+    await window._fb.setDoc(ref, { profile, updatedAt: window._fb.serverTimestamp() }, { merge: true });
+  } catch(e) { console.warn('[FB] saveProfile error:', e); }
+}
+
+/* ── Load user profile from Firestore ── */
+async function _loadFirestoreProfile(uid) {
+  if (!_fbReady() || !uid) return null;
+  try {
+    const ref  = window._fb.docRef('users', uid);
+    const snap = await window._fb.getDoc(ref);
+    if (snap.exists()) return snap.data().profile || null;
+  } catch(e) { console.warn('[FB] loadProfile error:', e); }
+  return null;
+}
+
+/* ── Save crews to Firestore ── */
+async function _saveFirestoreCrews(uid, crews) {
+  if (!_fbReady() || !uid) return;
+  try {
+    const ref = window._fb.docRef('users', uid);
+    await window._fb.setDoc(ref, { crews, crewsUpdatedAt: window._fb.serverTimestamp() }, { merge: true });
+  } catch(e) { console.warn('[FB] saveCrews error:', e); }
+}
+
+/* ── Load crews from Firestore ── */
+async function _loadFirestoreCrews(uid) {
+  if (!_fbReady() || !uid) return;
+  try {
+    const ref  = window._fb.docRef('users', uid);
+    const snap = await window._fb.getDoc(ref);
+    if (snap.exists() && snap.data().crews) {
+      const crews = snap.data().crews;
+      // Merge with localStorage
+      try { localStorage.setItem(USER_CREWS_KEY, JSON.stringify(crews)); } catch(_){}
+      // Re-render crews panel
+      const gp = document.getElementById('panel-groups');
+      if (gp) {
+        // Only add crews not already in the panel
+        crews.forEach(c => {
+          if (!c.name) return;
+          const exists = Array.from(gp.querySelectorAll('.chat-name')).find(el => el.textContent.trim() === c.name);
+          if (!exists) {
+            _addGroupToPanel(c.name, c.icon || 'users', c.grad || 'linear-gradient(135deg,#7B2FBE,#4A90E2)', c.preview || '');
+          }
+        });
+      }
+    }
+  } catch(e) { console.warn('[FB] loadCrews error:', e); }
+}
+
+/* ── Save events to Firestore ── */
+async function _saveFirestoreEvents(uid, events) {
+  if (!_fbReady() || !uid) return;
+  try {
+    const ref = window._fb.docRef('users', uid);
+    await window._fb.setDoc(ref, { events, eventsUpdatedAt: window._fb.serverTimestamp() }, { merge: true });
+  } catch(e) { console.warn('[FB] saveEvents error:', e); }
+}
+
+/* ── Load events from Firestore ── */
+async function _loadFirestoreEvents(uid) {
+  if (!_fbReady() || !uid) return;
+  try {
+    const ref  = window._fb.docRef('users', uid);
+    const snap = await window._fb.getDoc(ref);
+    if (snap.exists() && snap.data().events) {
+      const events = snap.data().events;
+      try { localStorage.setItem(EVENTS_KEY, JSON.stringify(events)); } catch(_){}
+      renderEvents();
+      renderHomeEventsPreview();
+    }
+  } catch(e) { console.warn('[FB] loadEvents error:', e); }
+}
+
+/* ── Send a message to Firestore ── */
+async function _sendFirestoreMessage(chatKey, text, senderName, senderAvatar) {
+  if (!_fbReady()) return;
+  const user = _currentUser();
+  if (!user) return;
+  try {
+    const colRef = window._fb.col('chats/' + chatKey + '/messages');
+    await window._fb.addDoc(colRef, {
+      text,
+      senderUid:    user.uid,
+      senderName:   senderName || 'You',
+      senderAvatar: senderAvatar || '',
+      ts:           window._fb.serverTimestamp(),
+      type:         'text'
+    });
+  } catch(e) { console.warn('[FB] sendMessage error:', e); }
+}
+
+/* ── Subscribe to real-time messages for a chat ── */
+function _subscribeToChat(chatKey) {
+  if (!_fbReady()) return;
+  const user = _currentUser();
+  if (!user) return;
+  // Unsubscribe previous listener for this key
+  if (_msgUnsubMap.has(chatKey)) {
+    try { _msgUnsubMap.get(chatKey)(); } catch(_){}
+    _msgUnsubMap.delete(chatKey);
+  }
+  const colRef = window._fb.col('chats/' + chatKey + '/messages');
+  const q = window._fb.query(colRef, window._fb.orderBy('ts', 'asc'), window._fb.limit(100));
+  const unsub = window._fb.onSnapshot(q, snapshot => {
+    if (chatKey !== _activeChatKey) return; // only update if this chat is open
+    const msgArea   = document.getElementById('messages-area');
+    const typingRow = document.getElementById('typing-row');
+    if (!msgArea || !typingRow) return;
+    // Remove all existing messages (keep typing-row)
+    Array.from(msgArea.children).forEach(child => {
+      if (child.id !== 'typing-row') child.remove();
+    });
+    // Re-render all messages from Firestore
+    snapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      const isMine = data.senderUid === user.uid;
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + (isMine ? 'sent' : 'received');
+      const timeStr = data.ts ? new Date(data.ts.toMillis()).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'}) : getTime();
+      if (isMine) {
+        row.innerHTML = '<div class="msg-group"><div class="bubble sent-bubble">' + escapeHtml(data.text) + '</div><div class="msg-meta">' + timeStr + ' ✓✓</div></div>';
+      } else {
+        const avatarSrc = data.senderAvatar || 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=' + encodeURIComponent(data.senderName || 'user') + '&backgroundColor=6B00FF';
+        row.innerHTML = '<div class="msg-group"><div class="msg-sender-name">' + escapeHtml(data.senderName || 'Crew Member') + '</div><div class="bubble received-bubble">' + escapeHtml(data.text) + '</div><div class="msg-meta">' + timeStr + '</div></div>';
+      }
+      msgArea.insertBefore(row, typingRow);
+    });
+    scrollToBottom();
+  }, err => {
+    console.warn('[FB] message listener error:', err);
+  });
+  _msgUnsubMap.set(chatKey, unsub);
+}
+
+/* ── Subscribe to the currently active chat ── */
+function _subscribeToActiveChat() {
+  if (_activeChatKey) _subscribeToChat(_activeChatKey);
+}
+
+/* ── Sync profile save to Firestore ── */
+const _origSaveProfile = typeof saveProfile !== 'undefined' ? saveProfile : null;
+
 document.addEventListener('DOMContentLoaded',function(){
   initOceanNight();
   initWave();
@@ -8781,12 +9033,41 @@ document.addEventListener('DOMContentLoaded',function(){
      If a session exists: jump straight to login (pre-filled).
      Otherwise: stay on splash.
      Using showScreenInstant() prevents ANY intermediate screen flash.       */
-  if (checkSession()) {
-    // Session exists — go straight to home, skip login
+  // Firebase auth state is async — wait for it before deciding screen
+  // If Firebase is not yet loaded (first paint), use legacy session check
+  if (_fbReady() && _currentUser()) {
+    // Firebase user already cached (returning user)
+    const fbUser = _currentUser();
+    _loadFirestoreProfile(fbUser.uid).then(fbProfile => {
+      if (fbProfile) localStorage.setItem(PROFILE_KEY, JSON.stringify(fbProfile));
+      loadProfile();
+      showScreenInstant('screen-home');
+      _subscribeToActiveChat();
+      _loadFirestoreCrews(fbUser.uid);
+      _loadFirestoreEvents(fbUser.uid);
+    });
+  } else if (checkSession()) {
+    // Legacy session exists — go straight to home, skip login
     loadProfile();
     showScreenInstant('screen-home');
   }
   // else: stay on screen-splash (already active in HTML)
+  // Also set up Firebase auth state listener for when SDK loads
+  if (_fbReady()) {
+    window._fb.onAuthChange(user => {
+      if (user && currentScreen === 'screen-splash') {
+        // User signed in via Firebase but we're still on splash — go to home
+        _loadFirestoreProfile(user.uid).then(fbProfile => {
+          if (fbProfile) localStorage.setItem(PROFILE_KEY, JSON.stringify(fbProfile));
+          loadProfile();
+          showScreenInstant('screen-home');
+          _subscribeToActiveChat();
+          _loadFirestoreCrews(user.uid);
+          _loadFirestoreEvents(user.uid);
+        });
+      }
+    });
+  }
 
   setInterval(()=>{ if(currentScreen==='screen-home') simulateTyping(); },4000);
   setTimeout(()=>{
@@ -8961,7 +9242,7 @@ function initPWA() {
    - Reads live SW version from the active service worker
    - "Tap to check" triggers a manual SW update check
 ===================================================== */
-const APP_VERSION = 'v7.0.2';
+const APP_VERSION = 'v8.0.0';
 
 function initVersionDisplay() {
   // Set version text everywhere it appears
@@ -9785,6 +10066,9 @@ function saveUserCrews() {
     return { name, preview, grad, icon, meta };
   }).filter(c => c.name);
   try { localStorage.setItem(USER_CREWS_KEY, JSON.stringify(crews)); } catch(e) {}
+  // Sync to Firestore
+  const _fbUserCrews = _currentUser();
+  if (_fbUserCrews) _saveFirestoreCrews(_fbUserCrews.uid, crews);
 }
 
 function loadSavedCrews() {
@@ -9828,6 +10112,9 @@ function loadEvents() {
 
 function saveEvents(events) {
   localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+  // Sync to Firestore
+  const _fbUserEvts = _currentUser();
+  if (_fbUserEvts) _saveFirestoreEvents(_fbUserEvts.uid, events);
 }
 
 function openCreateEventSheet() {
